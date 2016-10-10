@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		4B0969C61DA427ED00EF1080 /* deck.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B0969C51DA427ED00EF1080 /* deck.cpp */; };
 		4B371F401DAAF47A00EBE89C /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4B371F3F1DAAF47A00EBE89C /* main.cpp */; };
 /* End PBXBuildFile section */
 
@@ -24,8 +23,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		4B0969C41DA4262900EF1080 /* deck.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = deck.hpp; sourceTree = "<group>"; };
-		4B0969C51DA427ED00EF1080 /* deck.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = deck.cpp; sourceTree = "<group>"; };
 		4B371F3F1DAAF47A00EBE89C /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; tabWidth = 4; };
 		4BC3085F1D904820009572D3 /* Dai-questao-03 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "Dai-questao-03"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -61,8 +58,6 @@
 			isa = PBXGroup;
 			children = (
 				4B371F3F1DAAF47A00EBE89C /* main.cpp */,
-				4B0969C41DA4262900EF1080 /* deck.hpp */,
-				4B0969C51DA427ED00EF1080 /* deck.cpp */,
 			);
 			name = source;
 			path = src;
@@ -124,7 +119,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				4B0969C61DA427ED00EF1080 /* deck.cpp in Sources */,
 				4B371F401DAAF47A00EBE89C /* main.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
