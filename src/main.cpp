@@ -477,8 +477,7 @@ double getOrientation(vector<Point> &pts, Mat &img)
 {
     //Construct a buffer used by the pca analysis
     Mat data_pts = Mat(pts.size(), 2, CV_64FC1);
-    for (int i = 0; i < data_pts.rows; ++i)
-    {
+    for (int i = 0; i < data_pts.rows; ++i) {
         data_pts.at<double>(i, 0) = pts[i].x;
         data_pts.at<double>(i, 1) = pts[i].y;
     }
@@ -493,8 +492,7 @@ double getOrientation(vector<Point> &pts, Mat &img)
     //Store the eigenvalues and eigenvectors
     vector<Point2d> eigen_vecs(2);
     vector<double> eigen_val(2);
-    for (int i = 0; i < 2; ++i)
-    {
+    for (int i = 0; i < 2; ++i) {
         eigen_vecs[i] = Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
                                 pca_analysis.eigenvectors.at<double>(i, 1));
         
@@ -508,6 +506,29 @@ double getOrientation(vector<Point> &pts, Mat &img)
     
     return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
 }
+
+void findMoments( vector<vector<Point>> &contours )
+{
+    /// Get the moments
+    vector<Moments> mu(contours.size() );
+    vector<Point2f> mc( contours.size() );
+    vector<double> mo( contours.size() );
+    for( int i = 0; i < contours.size(); i++ ) {
+        // get the moments
+        mu[i] = moments( contours[i], false );
+        
+        //  Get the center of mass
+        mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
+        
+        // Get the orientation
+        double num = 2.0*((mu[i].m00 * mu[i].m11) - (mu[i].m10 * mu[i].m01));
+        double dem = (mu[i].m00*mu[i].m20 - pow(mu[i].m10, 2.0))-(mu[i].m00 * mu[i].m02 - pow(mu[i].m01,2.0));
+        double orientation = (atan2(num,dem)/2.0);
+        mo[i] = orientation;
+        //        cout << mo[i] << endl;
+    }
+}
+
 static void help()
 {
     cout
@@ -521,91 +542,6 @@ static void help()
     << "------------------------------------------------------------------------------" << endl
     << "Utilizando OpenCV " << CV_VERSION << endl << endl;
 }
-
-/*
-void find_moments( Mat gray )
-{
-    Mat canny_output;
-    vector<vector<Point> > contours;
-    vector<Vec4i> hierarchy;
-    
-    /// Detect edges using canny
-    Canny( gray, canny_output, 50, 150, 3 );
-    imshow("canny", canny_output);
-    /// Find contours
-    findContours( canny_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0) );
-    
-    /// Get the moments
-    vector<Moments> mu(contours.size() );
-    vector<double> mo( contours.size() ); // orientation
-    vector<Point2f> mc( contours.size() );
-    
-    for( int i = 0; i < contours.size(); i++ )
-    {
-        mu[i] = moments( contours[i], false );
-        
-        
-        CvMoments moments1,cenmoments1;
-        double M00, M01, M10;
-        
-        M00 = cvGetSpatialMoment(&mu[i],0,0);
-        M10 = cvGetSpatialMoment(&mu[i],1,0);
-        M01 = cvGetSpatialMoment(&mu[i],0,1);
-        int posX_Yellow = (int)(M10/M00);
-        int posY_Yellow = (int)(M01/M00);
-        
-        double theta = 0.5 * atan((2 * cvGetCentralMoment(&moments1, 1, 1)) / (cvGetCentralMoment(&moments1, 2, 0) -  cvGetCentralMoment(&moments1, 0, 2)));
-        theta = (theta / CV_PI) * 180;
-        mo[i] = theta;
-    }
-
-
-    ///  Get the mass centers:
-    for( int i = 0; i < contours.size(); i++ ) {
-        mc[i] = Point2f( mu[i].m10/mu[i].m00 , mu[i].m01/mu[i].m00 );
-        
-//        double num = 2.0*((mu[i].m00*mu[i].m11) - (mu[i].m10*mu[i].m01));
-//        double dem = (mu[i].m00*mu[i].m20-pow(mu[i].m10,2.0)) - (mu[i].m00*mu[i].m02-pow(mu[i].m01, 2.0));
-//        double orientation = (atan2(num, dem)/2.0);
-//        // orientation = (orientation*180.0)/CV_PI; // degrees
-//        mo[i] = orientation;
-    }
-    
-    
-    /// Draw contours
-    Mat drawing = Mat::zeros( canny_output.size(), CV_8UC3 );
-    for( int i = 0; i< contours.size(); i++ )
-    {
-        Scalar color = Scalar( rng.uniform(0, 255), rng.uniform(0,255), rng.uniform(0,255) );
-        drawContours( drawing, contours, i, color, 2, 8, hierarchy, 0, Point() );
-        circle( drawing, mc[i], 4, color, -1, 8, 0 );
-    }
- 
-    
-    //draw line
-//    xAux = x0 + 100 ;
-//    yAux = tan((orientation*PI/180))*(xAux-x0) + y0;
-//    cvLine(frame,cvPoint(x0,y0),cvPoint(xAux,yAux),cvScalar(0,0,255),3,8,0);
-//    
-//    xAux = x0 - 100 ;
-//    yAux = tan((orientation*PI/180))*(xAux-x0) + y0;
-//    cvLine(frame,cvPoint(x0,y0),cvPoint(xAux,yAux),cvScalar(0,0,255),3,8,0);
-    
-    
-    /// Show in a window
-    namedWindow( "Contours", CV_WINDOW_AUTOSIZE );
-    imshow( "Contours", drawing );
-    
-    /// Calculate the area with the moments 00 and compare with the result of the OpenCV function
-    printf("\t Info: Area and Contour Length \n");
-    for( int i = 0; i< contours.size(); i++ )
-        printf(" * Contour[%d] - Area (M_00) = %.2f - Area OpenCV: %.2f - Length: %.2f - Points: %lu\n - Orientation: %f",
-               i, mu[i].m00, contourArea(contours[i]), arcLength( contours[i], true ), contours[i].size(), mo[i]
-        );
-    
-}
-*/
-
 
 /////////////////////////////////////
 int main(int argc, char *argv[]) {
@@ -654,11 +590,6 @@ int main(int argc, char *argv[]) {
         
         convertToGrey(frame, frameGray);
         
-        
-        
-        //            cout << inputVideo.get(CAP_PROP_POS_FRAMES) << endl;
-        
-        
         // THRESHOLD
         threshold(frameGray, frameGray, 125, 255, THRESH_BINARY | THRESH_OTSU);
         
@@ -688,84 +619,57 @@ int main(int argc, char *argv[]) {
         vector< vector< Point > > candidates;
         findContours(contoursImg, contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
 
-        int minPerimeterPixels = 450;
-        int maxPerimeterPixels = 600;
-
+        int minPerimeterPoints = 450;
+        int maxPerimeterPoints = 600;
+        
+        Mat displayOrientation;
+        displayOrientation.create( frameGrayMasked.size(), frame.type() );
         
         for(unsigned int i = 0; i < contours.size(); i++) {
-            // cout << "i: " << i << " - size: " << contours[i].size() << endl;
             
-            // check perimeter
-            if(contours[i].size() < minPerimeterPixels || contours[i].size() > maxPerimeterPixels) continue;
-            
-            // check area
-            double area = contourArea(contours[i]);
-            if (area < 1e2 || area > 1e5) {
+            // check if image goes from top to bottom
+            Rect bounding = boundingRect(contours[i]);
+            if (bounding.y > 1 || bounding.height < (frameGrayMasked.rows-2) ) { // the -2 is to fit the contour inside the frame
+                if (gDebug)
+                    cout << "i: " << i << " - excluded by bounding limits" << endl;
                 continue;
             }
+            
+            // check if the aspect ratio is valid
+            float aspectRatio = (float)bounding.width / bounding.height;
+            if (aspectRatio > 0.2) {
+                if (gDebug)
+                    cout << "i: " << i << " - excluded by aspect ratio: " << aspectRatio << endl;
+                continue;
+            }
+
+            // check perimeter
+            if(contours[i].size() < minPerimeterPoints || contours[i].size() > maxPerimeterPoints) continue;
             
             // check is square and is convex
             double arcLen = arcLength(contours[i],true);
             vector< Point > approxCurve;
-            //                cout << "i: " << i << " - size: " << contours[i].size() << endl;
             approxPolyDP(contours[i], approxCurve, arcLen * 0.01, true);
-            //                cout << "i: " << i << " - approx. size: " << approxCurve.size() << endl;
-            if(approxCurve.size() != 4 || !isContourConvex(approxCurve)) {
-                cout << inputVideo.get(CAP_PROP_POS_FRAMES) << endl;
+            if(approxCurve.size() < 4 || approxCurve.size() > 6 || !isContourConvex(approxCurve)) {
+                if (gDebug)
+                    cout << "i: " << i << " - excluded by approx. size: " << approxCurve.size() << endl;
                 continue;
             }
             
-            //                if (approxCurve[0].y != 1 || approxCurve[)
-            
-            int minY = 10000;
-            int maxY = 0;
-            for(int j = 0; j < 4; j++) {
-                minY = min(minY, approxCurve[j].y);
-                maxY = max(maxY, approxCurve[j].y);
-            }
-            if (minY != 1 || maxY < (contoursImg.rows-2)) {
-                cout << inputVideo.get(CAP_PROP_POS_FRAMES) << endl;
-                continue;
-            }
-            
-            //                // check min distance between corners
-            //                double minDist = 2 * contoursImg.rows;
-            //                for(int j = 0; j < 4; j++) {
-            //                    double d = (double)(approxCurve[j].x - approxCurve[(j + 1) % 4].x) +
-            //                    (double)(approxCurve[j].x - approxCurve[(j + 1) % 4].x) +
-            //                    (double)(approxCurve[j].y - approxCurve[(j + 1) % 4].y) *
-            //                    (double)(approxCurve[j].y - approxCurve[(j + 1) % 4].y);
-            //                    minDistSq = min(minDistSq, d);
-            //                }
-            //                double minCornerDistancePixels = double(contours[i].size()) * minCornerDistanceRate;
-            //                if(minDistSq < minCornerDistancePixels * minCornerDistancePixels) continue;
-            
+//            getOrientation(contours[i], contoursImg);
             candidates.push_back(contours[i]);
         }
         
+        
+//        findMoments(candidates);
         cvtColor(contoursImg, contoursImg, CV_GRAY2BGR);
-        for (size_t i = 0; i < candidates.size(); ++i)
-        {
-            // Find the orientation of each shape
-            double orientation = getOrientation(candidates[i], contoursImg);
-            cout << orientation << endl;
+        drawContours(frame, candidates, -1, Scalar(0,0,255), 1);
+        
+        for(unsigned int i = 0; i < candidates.size(); i++) {
+            getOrientation(candidates[i], frame);
         }
         
-        
-        //            double peri = arcLength(contours, true);
-        //            approx = cv2.approxPolyDP(c, 0.01 * peri, True)
-        //            cout << "perimeter: " << peri << endl;
-        //            cout << contours.size() << endl;
-        
-        
-        drawContours(contoursImg, candidates, -1, Scalar(0,0,255), 1);
-        imshow("detect candidates", contoursImg);
-        
-        //            imshow("dilate / erode", frameGray);
-        //            imshow("Frame", frame);
-        
-        
-        //        imshow("Canny", frameGray);
+        imshow("Detected candidates", frame);
         
         char key = (char)waitKey(10); // 10ms/frame
         if(key == 27) break;
