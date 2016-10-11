@@ -24,7 +24,7 @@
 
 /* Begin PBXFileReference section */
 		4B371F3F1DAAF47A00EBE89C /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; indentWidth = 4; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; tabWidth = 4; };
-		4BC3085F1D904820009572D3 /* Dai-questao-03 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "Dai-questao-03"; sourceTree = BUILT_PRODUCTS_DIR; };
+		4BC3085F1D904820009572D3 /* dai-questao-03 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "dai-questao-03"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,7 +49,7 @@
 		4BC308601D904820009572D3 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				4BC3085F1D904820009572D3 /* Dai-questao-03 */,
+				4BC3085F1D904820009572D3 /* dai-questao-03 */,
 			);
 			name = Products;
 			sourceTree = SOURCE_ROOT;
@@ -80,7 +80,7 @@
 			);
 			name = tp2_osx;
 			productName = teste_ocv2;
-			productReference = 4BC3085F1D904820009572D3 /* Dai-questao-03 */;
+			productReference = 4BC3085F1D904820009572D3 /* dai-questao-03 */;
 			productType = "com.apple.product-type.tool";
 		};
 /* End PBXNativeTarget section */
@@ -276,7 +276,7 @@
 					"-lglfw3",
 					"-lglew",
 				);
-				PRODUCT_NAME = "Dai-questao-03";
+				PRODUCT_NAME = "dai-questao-03";
 			};
 			name = Debug;
 		};
@@ -347,7 +347,7 @@
 					"-lglfw3",
 					"-lglew",
 				);
-				PRODUCT_NAME = "Dai-questao-03";
+				PRODUCT_NAME = "dai-questao-03";
 			};
 			name = Release;
 		};
