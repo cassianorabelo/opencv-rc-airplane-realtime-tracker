@@ -1,6 +1,7 @@
-#include <opencv2/highgui.hpp>
 #include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/features2d.hpp>
 #include <iostream>
 
 using namespace std;
@@ -13,10 +14,18 @@ void onSkipFrames(VideoCapture &cap, int numFrames) {
     int frames = (int)cap.get(CV_CAP_PROP_FRAME_COUNT);
     int curFrame = (int)cap.get(CV_CAP_PROP_POS_FRAMES);
     
-    if (curFrame + numFrames > frames || curFrame + numFrames < 1)
+    int newFrame = curFrame + numFrames;
+    
+    if (newFrame > frames || newFrame < 1)
         curFrame = numFrames = 0;
     
-    cap.set( CAP_PROP_POS_FRAMES, curFrame + numFrames );
+    if (curFrame <= 370) {
+        newFrame = 390;
+    } else if (curFrame > 370 && curFrame < 950) {
+        newFrame = 950;
+    }
+
+    cap.set( CAP_PROP_POS_FRAMES, newFrame );
     
     if (gDebug)
         cout << cap.get(CAP_PROP_POS_FRAMES) << endl;
@@ -55,9 +64,40 @@ static void segment(InputArray _in, OutputArray _out) {
     bitwise_not(_out, _out);
 }
 
-static void detectPlane(InputArray _in,
+static void detectPlanes(InputArray _in,
                         vector< vector< Point > > &_candidates) {
     
+    int minPerimeterPoints = 50;
+    int maxPerimeterPoints = 3000;
+    
+    Mat contoursImg;
+    _in.getMat().copyTo(contoursImg);
+    
+    vector< vector< Point > > _contours;
+    findContours(contoursImg, _contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
+    
+    for(unsigned int i = 0; i < _contours.size(); i++) {
+        
+        // check amount of perimeter points
+        if(_contours[i].size() < minPerimeterPoints || _contours[i].size() > maxPerimeterPoints) continue;
+
+        
+        Rect bounding = boundingRect(_contours[i]);
+
+        // check if the aspect ratio is valid - something is too long...
+        float aspectRatio = (float)bounding.width / bounding.height;
+        if (aspectRatio > 5) continue;
+        
+        // check position in frame - ignore if too low
+        if (bounding.y > _in.rows()*.8) continue;
+        
+        double cArea = contourArea(_contours[i]);
+        cout << "i: " << i << " - area: " << cArea << endl;
+        
+//        if (isContourConvex(_contours[i])) continue;
+        
+        _candidates.push_back(_contours[i]);
+    }
 }
 
 /**
@@ -65,16 +105,18 @@ static void detectPlane(InputArray _in,
  */
 static void segmentPlane(InputArray _in, OutputArray _out) {
     // THRESHOLD
-    threshold(_in, _out, 125, 255, THRESH_BINARY | THRESH_OTSU);
+     threshold(_in, _out, 200, 255, THRESH_BINARY | THRESH_OTSU);
+    
+//    adaptiveThreshold(_in, _out, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 3, 5);
     
     // ERODE / DILATE
     int morph_size = 1;
+    Mat elErode = getStructuringElement( MORPH_RECT, Size( 2*morph_size + 1, 2*morph_size+1 ) );
+    erode(_out, _out, elErode, Point(-1, -1), 8, BORDER_DEFAULT);
     
-    Mat elErode = getStructuringElement( MORPH_ELLIPSE, Size( 2*morph_size+1, 2*morph_size+1 ) );
-    erode(_out, _out, elErode, Point(-1, -1), 6, BORDER_DEFAULT);
+    Mat elDilate = getStructuringElement( MORPH_RECT, Size( 2*morph_size+1, 2*morph_size+1 ) );
+    dilate(_out, _out, elDilate, Point(-1, -1), 6, BORDER_DEFAULT);
     
-    Mat elDilate = getStructuringElement( MORPH_ELLIPSE, Size( 2*morph_size+1, 2*morph_size+1 ) );
-    dilate(_out, _out, elDilate, Point(-1, -1), 4, BORDER_DEFAULT);
     
     // INVERT
     bitwise_not(_out, _out);
@@ -86,14 +128,14 @@ static void segmentPlane(InputArray _in, OutputArray _out) {
 static void detectPole(InputArray _in,
                        vector< vector< Point > > &_candidates) {
     
+    int minPerimeterPoints = 450;
+    int maxPerimeterPoints = 600;
+    
     Mat contoursImg;
     _in.getMat().copyTo(contoursImg);
     
     vector< vector< Point > > _contours;
     findContours(contoursImg, _contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
-    
-    int minPerimeterPoints = 450;
-    int maxPerimeterPoints = 600;
     
     Mat displayOrientation;
     displayOrientation.create( _in.size(), CV_8UC3 );
@@ -263,7 +305,10 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        
         convertToGrey(frame, frameGray);
+        
+        /*
         segment(frameGray, frameSegmentedPole);
 
         // ISOLATE THE FLAG POLE
@@ -283,15 +328,112 @@ int main(int argc, char *argv[]) {
 
         drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_8, noArray(), INT_MAX, roiTL);
         imshow("Detected candidates", frame);
+        */
         
         // DETECT AIRPLANE
+        
         segmentPlane(frameGray, frameSegmentedPlane);
         
+        /*
         vector< vector< Point > > planeContours;
-//        detectPlanes(contoursImg, poleContours);
+        detectPlanes(frameSegmentedPlane, planeContours);
         
+        cv::Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+        drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+        imshow("mask", mask);
+        
+        drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_8);
+        imshow("Detected planes", frame);
         
         imshow("frameSegmentedPlane", frameSegmentedPlane);
+        */
+  
+    
+    
+    
+        SimpleBlobDetector::Params pDefaultBLOB;
+    
+        // This is default parameters for SimpleBlobDetector
+        pDefaultBLOB.thresholdStep = 10;
+        pDefaultBLOB.minThreshold = 10;
+        pDefaultBLOB.maxThreshold = 200;
+        pDefaultBLOB.minRepeatability = 2;
+        pDefaultBLOB.minDistBetweenBlobs = 10;
+        pDefaultBLOB.filterByColor = false;
+        pDefaultBLOB.blobColor = 0;
+        pDefaultBLOB.filterByArea = false;
+        pDefaultBLOB.minArea = 25;
+        pDefaultBLOB.maxArea = 5000;
+        pDefaultBLOB.filterByCircularity = false;
+        pDefaultBLOB.minCircularity = 0.9f;
+        pDefaultBLOB.maxCircularity = (float)1e37;
+        pDefaultBLOB.filterByInertia = true;
+        pDefaultBLOB.minInertiaRatio = 0.1f;
+        pDefaultBLOB.maxInertiaRatio = (float)1e37;
+        pDefaultBLOB.filterByConvexity = false;
+        pDefaultBLOB.minConvexity = 0.95f;
+        pDefaultBLOB.maxConvexity = (float)1e37;
+        
+        // Descriptor array for BLOB
+        vector<String> typeDesc;
+        
+        vector<SimpleBlobDetector::Params> pBLOB;
+        vector<SimpleBlobDetector::Params>::iterator itBLOB;
+        
+        // Param for second BLOB detector we want area between 500 and 2900 pixels
+        typeDesc.push_back("BLOB");
+        pBLOB.push_back(pDefaultBLOB);
+        
+        itBLOB = pBLOB.begin();
+        vector<double> desMethCmp;
+        Ptr<Feature2D> b;
+        String label;
+        
+        vector< Vec3b >  palette;
+        for (int i = 0; i<65536; i++)
+        {
+            palette.push_back(Vec3b((uchar)rand(), (uchar)rand(), (uchar)rand()));
+        }
+        
+        // Descriptor loop
+        vector<String>::iterator itDesc;
+        
+        for (itDesc = typeDesc.begin(); itDesc != typeDesc.end(); ++itDesc)
+        {
+            vector<KeyPoint> keyImg1;
+            if (*itDesc == "BLOB")
+            {
+                b = SimpleBlobDetector::create(*itBLOB);
+                //            label = Legende(*itBLOB);
+                ++itBLOB;
+            }
+            try
+            {
+                // We can detect keypoint with detect method
+                vector<KeyPoint>  keyImg;
+                vector<Rect>  zone;
+                vector<vector <Point> >  region;
+                Mat     desc, result(frame.rows, frame.cols, CV_8UC3);
+                if (b.dynamicCast<SimpleBlobDetector>() != NULL)
+                {
+                    Ptr<SimpleBlobDetector> sbd = b.dynamicCast<SimpleBlobDetector>();
+                    sbd->detect(frameSegmentedPlane, keyImg, Mat());
+                    drawKeypoints(frame, keyImg, result);
+                    int i = 0;
+                    for (vector<KeyPoint>::iterator k = keyImg.begin(); k != keyImg.end(); ++k, ++i)
+                        circle(result, k->pt, (int)k->size, palette[i % 65536]);
+                }
+                namedWindow(*itDesc + label, WINDOW_AUTOSIZE);
+                imshow(*itDesc + label, result);
+                imshow("Original", frame);
+            }
+            catch (Exception& e)
+            {
+                cout << "Feature : " << *itDesc << "\n";
+                cout << e.msg << endl;
+            }
+        }
+        
     }
 
     return 0;

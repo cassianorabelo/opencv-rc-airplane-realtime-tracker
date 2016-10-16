@@ -15,7 +15,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "4BC3085E1D904820009572D3"
-               BuildableName = "Dai-questao-03"
+               BuildableName = "dai-questao-03"
                BlueprintName = "tp2_osx"
                ReferencedContainer = "container:DAI-questao-03-avia&#x303;o.xcodeproj">
             </BuildableReference>
@@ -33,7 +33,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "4BC3085E1D904820009572D3"
-            BuildableName = "Dai-questao-03"
+            BuildableName = "dai-questao-03"
             BlueprintName = "tp2_osx"
             ReferencedContainer = "container:DAI-questao-03-avia&#x303;o.xcodeproj">
          </BuildableReference>
@@ -56,7 +56,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "4BC3085E1D904820009572D3"
-            BuildableName = "Dai-questao-03"
+            BuildableName = "dai-questao-03"
             BlueprintName = "tp2_osx"
             ReferencedContainer = "container:DAI-questao-03-avia&#x303;o.xcodeproj">
          </BuildableReference>
@@ -97,7 +97,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "4BC3085E1D904820009572D3"
-            BuildableName = "Dai-questao-03"
+            BuildableName = "dai-questao-03"
             BlueprintName = "tp2_osx"
             ReferencedContainer = "container:DAI-questao-03-avia&#x303;o.xcodeproj">
          </BuildableReference>
