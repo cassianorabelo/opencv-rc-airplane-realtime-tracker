@@ -64,6 +64,47 @@ static void segment(InputArray _in, OutputArray _out) {
     bitwise_not(_out, _out);
 }
 
+/**
+ * @brief Get orientation of the contour using PCA
+ * Reference: https://goo.gl/IWFUcP
+ */
+double getOrientation(vector<Point> &pts, Mat &img, const Point offset) {
+    //Construct a buffer used by the pca analysis
+    Mat data_pts = Mat((uint)pts.size(), 2, CV_64FC1);
+    for (int i = 0; i < data_pts.rows; ++i) {
+        data_pts.at<double>(i, 0) = pts[i].x;
+        data_pts.at<double>(i, 1) = pts[i].y;
+    }
+    
+    //Perform PCA analysis
+    PCA pca_analysis(data_pts, Mat(), CV_PCA_DATA_AS_ROW);
+    
+    //Store the position of the object
+    Point pos = Point(pca_analysis.mean.at<double>(0, 0) + offset.x,
+                      pca_analysis.mean.at<double>(0, 1) + offset.y);
+    
+    //Store the eigenvalues and eigenvectors
+    vector<Point2d> eigen_vecs(2);
+    vector<double> eigen_val(2);
+    for (int i = 0; i < 2; ++i) {
+        eigen_vecs[i] = Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
+                                pca_analysis.eigenvectors.at<double>(i, 1));
+        
+        eigen_val[i] = pca_analysis.eigenvalues.at<double>(0, i);
+    }
+    
+    // Draw the principal components
+    circle(img, pos, 3, Scalar(255, 0, 255), 2);
+    
+    Point start(pos - 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
+    Point end(pos + 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
+    
+    line(img, start, end, CV_RGB(255, 255, 0));
+    line(img, pos, pos + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255));
+    
+    return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
+}
+
 static void detectPlanes(InputArray _in,
                         vector< vector< Point > > &_candidates) {
     
@@ -91,8 +132,27 @@ static void detectPlanes(InputArray _in,
         // check position in frame - ignore if too low
         if (bounding.y > _in.rows()*.8) continue;
         
-        double cArea = contourArea(_contours[i]);
-        cout << "i: " << i << " - area: " << cArea << endl;
+        
+        double arcLen = arcLength(_contours[i], true);
+        double conArea = contourArea(_contours[i]);
+        
+        double arcAreaRatio = arcLen/conArea; //
+        
+//        cout << "t: " << _contours.size() << " - arcAreaRatio: " << arcAreaRatio << endl;
+        
+        vector<Point> hullPts;
+        convexHull(_contours[i], hullPts);
+        double hullArea = contourArea(hullPts);
+        
+        
+        
+//        double solidity = conArea/hullArea;
+        double boundArea = (float)bounding.width * bounding.height;
+        double solidity = conArea/boundArea;
+        
+        
+//        if (cArea < 300 || cArea)
+//        cout << "i: " << i << " - solidity: " << solidity << endl;
         
 //        if (isContourConvex(_contours[i])) continue;
         
@@ -172,48 +232,6 @@ static void detectPole(InputArray _in,
         }
         _candidates.push_back(_contours[i]);
     }
-}
-
-
-/**
- * @brief Get orientation of the contour using PCA
- * Reference: https://goo.gl/IWFUcP
- */
-double getOrientation(vector<Point> &pts, Mat &img, const Point offset) {
-    //Construct a buffer used by the pca analysis
-    Mat data_pts = Mat((uint)pts.size(), 2, CV_64FC1);
-    for (int i = 0; i < data_pts.rows; ++i) {
-        data_pts.at<double>(i, 0) = pts[i].x;
-        data_pts.at<double>(i, 1) = pts[i].y;
-    }
-
-    //Perform PCA analysis
-    PCA pca_analysis(data_pts, Mat(), CV_PCA_DATA_AS_ROW);
-
-    //Store the position of the object
-    Point pos = Point(pca_analysis.mean.at<double>(0, 0) + offset.x,
-                      pca_analysis.mean.at<double>(0, 1) + offset.y);
-
-    //Store the eigenvalues and eigenvectors
-    vector<Point2d> eigen_vecs(2);
-    vector<double> eigen_val(2);
-    for (int i = 0; i < 2; ++i) {
-        eigen_vecs[i] = Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
-                                pca_analysis.eigenvectors.at<double>(i, 1));
-
-        eigen_val[i] = pca_analysis.eigenvalues.at<double>(0, i);
-    }
-
-    // Draw the principal components
-    circle(img, pos, 3, Scalar(255, 0, 255), 2);
-
-    Point start(pos - 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
-    Point end(pos + 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
-
-    line(img, start, end, CV_RGB(255, 255, 0));
-    line(img, pos, pos + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255));
-
-    return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
 }
 
 static void help(char exe[])
@@ -308,7 +326,7 @@ int main(int argc, char *argv[]) {
         
         convertToGrey(frame, frameGray);
         
-        /*
+        
         segment(frameGray, frameSegmentedPole);
 
         // ISOLATE THE FLAG POLE
@@ -328,111 +346,29 @@ int main(int argc, char *argv[]) {
 
         drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_8, noArray(), INT_MAX, roiTL);
         imshow("Detected candidates", frame);
-        */
+        
         
         // DETECT AIRPLANE
         
         segmentPlane(frameGray, frameSegmentedPlane);
-        
-        /*
+    
         vector< vector< Point > > planeContours;
         detectPlanes(frameSegmentedPlane, planeContours);
         
+        /*
         cv::Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
         imshow("mask", mask);
+        */
+        
+        for(unsigned int i = 0; i < planeContours.size(); i++) {
+            getOrientation(planeContours[i], frame, Point(0,0));
+        }
+        
         
         drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_8);
         imshow("Detected planes", frame);
-        
         imshow("frameSegmentedPlane", frameSegmentedPlane);
-        */
-  
-    
-    
-    
-        SimpleBlobDetector::Params pDefaultBLOB;
-    
-        // This is default parameters for SimpleBlobDetector
-        pDefaultBLOB.thresholdStep = 10;
-        pDefaultBLOB.minThreshold = 10;
-        pDefaultBLOB.maxThreshold = 200;
-        pDefaultBLOB.minRepeatability = 2;
-        pDefaultBLOB.minDistBetweenBlobs = 10;
-        pDefaultBLOB.filterByColor = false;
-        pDefaultBLOB.blobColor = 0;
-        pDefaultBLOB.filterByArea = false;
-        pDefaultBLOB.minArea = 25;
-        pDefaultBLOB.maxArea = 5000;
-        pDefaultBLOB.filterByCircularity = false;
-        pDefaultBLOB.minCircularity = 0.9f;
-        pDefaultBLOB.maxCircularity = (float)1e37;
-        pDefaultBLOB.filterByInertia = true;
-        pDefaultBLOB.minInertiaRatio = 0.1f;
-        pDefaultBLOB.maxInertiaRatio = (float)1e37;
-        pDefaultBLOB.filterByConvexity = false;
-        pDefaultBLOB.minConvexity = 0.95f;
-        pDefaultBLOB.maxConvexity = (float)1e37;
-        
-        // Descriptor array for BLOB
-        vector<String> typeDesc;
-        
-        vector<SimpleBlobDetector::Params> pBLOB;
-        vector<SimpleBlobDetector::Params>::iterator itBLOB;
-        
-        // Param for second BLOB detector we want area between 500 and 2900 pixels
-        typeDesc.push_back("BLOB");
-        pBLOB.push_back(pDefaultBLOB);
-        
-        itBLOB = pBLOB.begin();
-        vector<double> desMethCmp;
-        Ptr<Feature2D> b;
-        String label;
-        
-        vector< Vec3b >  palette;
-        for (int i = 0; i<65536; i++)
-        {
-            palette.push_back(Vec3b((uchar)rand(), (uchar)rand(), (uchar)rand()));
-        }
-        
-        // Descriptor loop
-        vector<String>::iterator itDesc;
-        
-        for (itDesc = typeDesc.begin(); itDesc != typeDesc.end(); ++itDesc)
-        {
-            vector<KeyPoint> keyImg1;
-            if (*itDesc == "BLOB")
-            {
-                b = SimpleBlobDetector::create(*itBLOB);
-                //            label = Legende(*itBLOB);
-                ++itBLOB;
-            }
-            try
-            {
-                // We can detect keypoint with detect method
-                vector<KeyPoint>  keyImg;
-                vector<Rect>  zone;
-                vector<vector <Point> >  region;
-                Mat     desc, result(frame.rows, frame.cols, CV_8UC3);
-                if (b.dynamicCast<SimpleBlobDetector>() != NULL)
-                {
-                    Ptr<SimpleBlobDetector> sbd = b.dynamicCast<SimpleBlobDetector>();
-                    sbd->detect(frameSegmentedPlane, keyImg, Mat());
-                    drawKeypoints(frame, keyImg, result);
-                    int i = 0;
-                    for (vector<KeyPoint>::iterator k = keyImg.begin(); k != keyImg.end(); ++k, ++i)
-                        circle(result, k->pt, (int)k->size, palette[i % 65536]);
-                }
-                namedWindow(*itDesc + label, WINDOW_AUTOSIZE);
-                imshow(*itDesc + label, result);
-                imshow("Original", frame);
-            }
-            catch (Exception& e)
-            {
-                cout << "Feature : " << *itDesc << "\n";
-                cout << e.msg << endl;
-            }
-        }
         
     }
 
