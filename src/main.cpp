@@ -114,6 +114,9 @@ static void detectPlanes(InputArray _in,
     Mat contoursImg;
     _in.getMat().copyTo(contoursImg);
     
+    Mat temp;
+    contoursImg.copyTo(temp);
+    
     vector< vector< Point > > _contours;
     findContours(contoursImg, _contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
     
@@ -135,22 +138,13 @@ static void detectPlanes(InputArray _in,
         
         double arcLen = arcLength(_contours[i], true);
         double conArea = contourArea(_contours[i]);
-        
-        double arcAreaRatio = arcLen/conArea; //
-        
-//        cout << "t: " << _contours.size() << " - arcAreaRatio: " << arcAreaRatio << endl;
-        
-        vector<Point> hullPts;
-        convexHull(_contours[i], hullPts);
-        double hullArea = contourArea(hullPts);
-        
-        
-        
-//        double solidity = conArea/hullArea;
-        double boundArea = (float)bounding.width * bounding.height;
-        double solidity = conArea/boundArea;
-        
-        
+
+        if (conArea < 200 || conArea > 10000) {
+            cout << "por area! " << conArea << endl;
+            drawContours(temp, _contours, i, Scalar(0));
+            imshow("temp", temp);
+            continue;
+        }
 //        if (cArea < 300 || cArea)
 //        cout << "i: " << i << " - solidity: " << solidity << endl;
         
@@ -334,6 +328,7 @@ int main(int argc, char *argv[]) {
         Mat roi(frameSegmentedPole, roiRect);
 
         // FIND POLE CONTOURS
+        /*
         Mat contoursImg;
         roi.copyTo(contoursImg);
         
@@ -346,7 +341,7 @@ int main(int argc, char *argv[]) {
 
         drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_8, noArray(), INT_MAX, roiTL);
         imshow("Detected candidates", frame);
-        
+        */
         
         // DETECT AIRPLANE
         
@@ -360,10 +355,6 @@ int main(int argc, char *argv[]) {
         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
         imshow("mask", mask);
         */
-        
-        for(unsigned int i = 0; i < planeContours.size(); i++) {
-            getOrientation(planeContours[i], frame, Point(0,0));
-        }
         
         
         drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_8);
