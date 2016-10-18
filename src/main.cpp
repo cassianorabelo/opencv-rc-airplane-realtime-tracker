@@ -14,9 +14,15 @@ using namespace cv;
 bool gDebug = true;
 bool gPause = false;
 
-void onSkipFrames(VideoCapture &cap, int numFrames) {
+void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly = false) {
     int frames = (int)cap.get(CV_CAP_PROP_FRAME_COUNT);
     int curFrame = (int)cap.get(CV_CAP_PROP_POS_FRAMES);
+
+
+    if (jumpDirectly) {
+        cap.set( CAP_PROP_POS_FRAMES, numFrames );
+        return;
+    }
 
     int newFrame = curFrame + numFrames;
 
@@ -37,7 +43,7 @@ void onSkipFrames(VideoCapture &cap, int numFrames) {
         } else if (curFrame > 1520 && curFrame < 1830) {
             newFrame = 1830;
         }
-    } else {
+    } else if (numFrames != 666) {
         if (curFrame <= 370) {
             newFrame = 360;
         } else if (curFrame > 370 && curFrame < 690) {
@@ -133,6 +139,9 @@ double getOrientation(vector<Point> &pts, Mat &img, const Point offset) {
     return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
 }
 
+/**
+ * @brief
+ */
 static void detectUAV(InputArray _in,
                         vector<vector<Point>> &candidates,
                         const vector<Point2f> &prevPts,
@@ -171,14 +180,14 @@ static void detectUAV(InputArray _in,
 
         tmpCandidates.push_back(_contours[i]);
     }
-    
+
     if (tmpCandidates.size() == 0) {
         return;
     } else if (tmpCandidates.size() == 1) {
         candidates.push_back(tmpCandidates[0]);
         return;
     }
-    
+
     /*
     for (size_t i = 0; i < tmpCandidates.size(); ++i) {
         for (size_t j = 0; j < magnitude.size(); ++j) {
@@ -190,9 +199,9 @@ static void detectUAV(InputArray _in,
         }
     }
     */
-    
+
     vector<double> magnitudeMeanValue(tmpCandidates.size(), 0.0);
-    
+
     for (size_t i = 0; i < tmpCandidates.size(); ++i) {
         int numPointsInsideContour = 0;
         for (size_t j = 0; j < magnitude.size(); ++j) {
@@ -203,7 +212,7 @@ static void detectUAV(InputArray _in,
         }
         magnitudeMeanValue[i] = numPointsInsideContour?magnitudeMeanValue[i]/(float)numPointsInsideContour:0;
     }
-    
+
     double maxVal = -1;
     double maxValPos = 0;
     for (size_t i = 0; i < tmpCandidates.size(); ++i) {
@@ -212,11 +221,11 @@ static void detectUAV(InputArray _in,
             maxValPos = i;
         }
     }
-    
+
     if (maxVal < maxMagnitude) {
         return;
     }
-    
+
     cout << "mag: " << magnitudeMeanValue[maxValPos] << endl;
     candidates.push_back(tmpCandidates[maxValPos]);
 }
@@ -246,22 +255,21 @@ bool opticalFlow(InputOutputArray &flowPrev,
 
 
 /**
- * @brief Threshold input image using adaptive thresholding
+ * @brief
  */
 static void segmentUAV(InputArray _in, OutputArray _out) {
-    // THRESHOLD
      threshold(_in, _out, 200, 255, THRESH_BINARY | THRESH_OTSU);
 
 //    adaptiveThreshold(_in, _out, 255, ADAPTIVE_THRESH_GAUSSIAN_C, THRESH_BINARY, 3, 5);
 
-    // ERODE / DILATE
+    // ERODE
     int morph_size = 1;
     Mat elErode = getStructuringElement( MORPH_RECT, Size( 2*morph_size + 1, 2*morph_size+1 ) );
-    erode(_out, _out, elErode, Point(-1, -1), 8, BORDER_DEFAULT);
+    erode(_out, _out, elErode, Point(-1, -1), 10, BORDER_DEFAULT);
 
+    // DILATE
     Mat elDilate = getStructuringElement( MORPH_RECT, Size( 2*morph_size+1, 2*morph_size+1 ) );
     dilate(_out, _out, elDilate, Point(-1, -1), 6, BORDER_DEFAULT);
-
 
     // INVERT
     bitwise_not(_out, _out);
@@ -453,6 +461,11 @@ int main(int argc, char *argv[]) {
     }
     convertToGrey(frame, flowPrev);
 
+    // stores the plane position previous and current
+    Point planePosPrev(0,0);
+    Point planePosCurr(0,0);
+    bool planeVisible = false;
+
     for (;;) {
 
         char key = (char)waitKey(10); // 10ms/frame
@@ -466,6 +479,9 @@ int main(int argc, char *argv[]) {
             case ']':
                 onSkipFrames(inputVideo, 50);
                 break;
+            case 'x':
+                onSkipFrames(inputVideo, 940, true);
+                break;
             case 'd':
                 gDebug = !gDebug;
                 cout << "debug=" << (gDebug?"ON":"OFF") << endl;
@@ -473,7 +489,6 @@ int main(int argc, char *argv[]) {
             case 'p':
                 pause(inputVideo);
                 break;
-
         }
 
         if (gPause)
@@ -485,6 +500,7 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        uint curframe = inputVideo.get(CAP_PROP_POS_FRAMES);
 
         convertToGrey(frame, frameGray);
         segment(frameGray, frameSegmentedPole);
@@ -513,10 +529,15 @@ int main(int argc, char *argv[]) {
         vector< vector< Point > > planeContours;
 
         segmentUAV(frameGray, frameSegmentedPlane);
+
+        imshow("segmented UAV", frameSegmentedPlane);
+
         if (!opticalFlow(flowPrev, frameGray, pts, nextPts, status, err)) continue;
         vector<double> magnitude;
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, planeContours, pts, nextPts, status, magnitude);
+
+
 
         /*
         cv::Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
@@ -527,7 +548,19 @@ int main(int argc, char *argv[]) {
         if (planeContours.size() > 1) {
             cout << "num. contours: " << planeContours.size() << endl;
         }
-        
+
+        // TENTAR ENTENDER PQ O FRAME 959 NAO MARCA O AVIAO...
+
+//        if (planeContours.size()) {
+//            if (planeVisible) {
+//            }
+//
+//            planePosCurr
+//            planePosPrev
+//
+//        }
+
+
         drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_8);
         //        imshow("Detected planes", frame);
         //        imshow("frameSegmentedPlane", frameSegmentedPlane);
