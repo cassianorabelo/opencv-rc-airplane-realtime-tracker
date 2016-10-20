@@ -60,6 +60,8 @@ void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly = false) {
             newFrame = 1180;
         } else if (curFrame > 1520 && curFrame < 1830) {
             newFrame = 1510;
+        } else if (curFrame > 1830) {
+            newFrame = 1830;
         }
     }
     
@@ -69,16 +71,15 @@ void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly = false) {
         cout << cap.get(CAP_PROP_POS_FRAMES) << endl;
 }
 
-void matPrint(Mat &img, Scalar fontColor, const string &ss) {
+void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss) {
     int fontFace = FONT_HERSHEY_DUPLEX;
-    int lineOffsY;
     double fontScale = 0.5;
     int fontThickness = 1;
-    Size fontSize = getTextSize("T[]", fontFace, fontScale, fontThickness, 0);
+    Size fontSize = cv::getTextSize("T[]", fontFace, fontScale, fontThickness, 0);
     
     Point org;
     org.x = 10;
-    org.y = 3 * fontSize.height * (lineOffsY + 1) / 2;
+    org.y = 3 * fontSize.height/ 2;
     putText(img, ss, org, fontFace, fontScale, Scalar(255, 255, 255), fontThickness, LINE_AA);
 }
 
@@ -209,7 +210,7 @@ void detectUAV(InputArray _in,
         double area = contourArea(_contours[i]);
         if (area < 800) continue;
         
-        // check to see if most of the contour is composed of blue color 
+        // check to see if most of the contour is composed of blue color
         Mat roi(_inColor.getMat(), bounding);
         Mat roiHSV, inRangeRes;
         roi.copyTo(roiHSV);
@@ -223,8 +224,8 @@ void detectUAV(InputArray _in,
         }
         //        imshow("roi", roiHSV);
         //        imshow("sky", inRangeRes);
-
-
+        
+        
         
         // if convex, slim chance of being a plane
         if(isContourConvex(_contours[i])) continue;
@@ -510,9 +511,9 @@ int main(int argc, char *argv[]) {
     int planeDirection = 0;
     uint frameLastSeen = 0;
     uint visibleFor = 0; // num of frames that the contour is visible
-    uint staticFor = 0; // num of frames that the contour is static
     const uint distConsiderStatic = S.width * 0.015; // 1.5% of the width;
-    uint frameIntervalBeforeReset = 3;
+    uint frameIntervalBeforeReset = 3; // min # of frames without plane to reset the system
+    uint frameIntervalForVisibility = 2; // min # of frames with plane to be considered visible
     
     const uint marginSize = 200; // when the plane appears, it must be inside the margin (in pixels)
     const uint maxPlaneVertDisp = 200; // maximum vertical displacement of the plane per frame (in pixels)
@@ -533,8 +534,7 @@ int main(int argc, char *argv[]) {
                 onSkipFrames(inputVideo, 50);
                 break;
             case 'x':
-                //                onSkipFrames(inputVideo, 940, true);
-                onSkipFrames(inputVideo, 1585, true);
+                onSkipFrames(inputVideo, 1833, true);
                 break;
             case 'd':
                 gDebug = !gDebug;
@@ -572,10 +572,10 @@ int main(int argc, char *argv[]) {
         detectPole(contoursImg, poleContours);
         
         //Store the position of the object
-        Point posCenter; // stores pole center of mass
+        Point poleCenterMass; // stores pole center of mass
         double angle; // stores pole angle
         for(unsigned int i = 0; i < poleContours.size(); i++) {
-            angle = getOrientation(poleContours[i], frame, posCenter, roiTL);
+            angle = getOrientation(poleContours[i], frame, poleCenterMass, roiTL);
         }
         
         // DRAW POLE
@@ -587,15 +587,15 @@ int main(int argc, char *argv[]) {
         segmentUAV(frameGray, frameSegmentedPlane);
         //  imshow("segmented UAV", frameSegmentedPlane);
         
+        // calculate, using optical flow, the magnitude of the movement
         if (!opticalFlow(flowPrev, frameGray, pts, nextPts, status, err)) continue;
         vector<double> magnitude;
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
-        
-         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
-         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
-         imshow("mask", mask);
+        //         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+        //         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+        //         imshow("mask", mask);
         
         
         // _CR_ DEBUG
@@ -603,74 +603,46 @@ int main(int argc, char *argv[]) {
         //            cout << "[" << curFrame << "] " << "[num. contours: " << planeContours.size() << "]" << endl;
         //        }
         
+        Rect bounding;
+        
         // tem q resolver isso aqui pra quando for > 1
-        if (planeContours.size() == 1) {
+        if (planeContours.size() == 1)
+        {
             frameLastSeen = curFrame;
-            Rect bounding = boundingRect(planeContours[0]);
+            bounding = boundingRect(planeContours[0]);
             
-            if (!planeVisible) {
-
-                // the plane is outside the margin, which means it teleported
-                if (bounding.x > marginSize && bounding.x < (S.width - marginSize)) {
-                    // cout << "outside margin: " << bounding.x << endl;
-                } else {
-                    planePosCurr = Point(bounding.x, bounding.y);
-                    double dist = norm(Mat(planePosPrev), Mat(planePosCurr)); // how much did the contour move?
-                    if (frameLastSeen > 10 && planeDirection == 0 && dist < distConsiderStatic) {
-                        // cout << "[" << curFrame << "] parado 111" << endl;
-                        planeVisible = false;
-                        planeDirection = 0; // no direction on record
-                        visibleFor = 0;
-                        
-                    } else {
-                        planeVisible = true; // plane just appeared;
-                        // cout << "[x: " << bounding.x << "]" << "[y: " << bounding.y << "]" << endl;
-                    }
-                    
-                }
-                
-            } else { // planeVisible
-                
-                planePosPrev = planePosCurr;
-                planePosCurr = Point(bounding.x, bounding.y);
-                double dist = norm(Mat(planePosPrev), Mat(planePosCurr)); // how much did the contour move?
-                
-                if (dist < distConsiderStatic) { // there was no movement...
-                    
-                    staticFor++;
-                    
-                    if (staticFor > 1) {
-                        planeVisible = false;
-                        planeDirection = 0; // no direction on record
-                        visibleFor = 0;
-                        // cout << "[" << curFrame << "] parado" << endl;
-                    }
-                    
-                } else {
-                    visibleFor++;
-                    
-                    // the plane has been visible for at least 2 frames
-                    if (visibleFor > 1) {
-                        staticFor = 0;
-                        uint verticalDisp = abs(planePosPrev.y - planePosCurr.y);
-                        // cout << verticalDisp << endl;
-                        if (verticalDisp > maxPlaneVertDisp) {
-                            // cout << "too much: " << verticalDisp << endl;
-                        }
-                        
-                        int deltaX = planePosCurr.x - planePosPrev.x;
-                        if (deltaX > 0) {  // find the direction of flight
-                            planeDirection = 1;
-                        } else {
-                            planeDirection = -1;
-                        }
-                    }
+            if (!planeVisible)
+            {
+                bool planeEnteringFrame = !(bounding.x > marginSize && bounding.x < (S.width - marginSize));
+                if (planeEnteringFrame) // is the plane entering the frame or it "teleported"?
+                {
+                    planeVisible = true; // plane just appeared;
                 }
             }
-            
-        } else { // contours != 1
-            
-            if (planeVisible && curFrame - frameLastSeen > frameIntervalBeforeReset) {
+            else
+            { // planeVisible
+                planePosPrev = planePosCurr;
+                planePosCurr = Point(bounding.x, bounding.y);
+                
+                visibleFor++;
+                
+                // the plane has been visible for at least "frameIntervalForVisibility" frames
+                if (visibleFor > frameIntervalForVisibility)
+                {
+                    int deltaX = planePosCurr.x - planePosPrev.x;
+                    if (deltaX > 0) // find the direction of flight
+                    {
+                        planeDirection = 1;
+                    } else {
+                        planeDirection = -1;
+                    }
+                } // visible for...
+            }
+        }
+        else // contours != 1
+        {
+            if (planeVisible && curFrame - frameLastSeen > frameIntervalBeforeReset)
+            { // the plane was visible and a few frames have ellapsed with no plane in sight...
                 planeVisible = false;
                 planeDirection = 0; // no direction on record
                 visibleFor = 0;
@@ -685,20 +657,54 @@ int main(int argc, char *argv[]) {
             }
         }
         
-        if (planeVisible) {
-            matPrint(frame, Scalar(0), "PLANE ON FRAME");
-            drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_8);
+        if (planeVisible)
+        {
+            
+            cout << planeDirection << "..." << poleCenterMass.x << " - " << planePosPrev.x << " - " << planePosCurr.x << endl;
+//            cout << planeDirection << endl;
+            string movingTxt;
+            bool drawCrossingLine = false;
+            
+            if (planeDirection == 1)
+            {
+                movingTxt = ">>>";
+                if (planePosCurr.x > poleCenterMass.x && planePosPrev.x < poleCenterMass.x) {
+                    drawCrossingLine = true;
+                }
+            }
+            else if (planeDirection == -1)
+            {
+                movingTxt = "<<<";
+                if (planePosCurr.x < poleCenterMass.x && planePosPrev.x > poleCenterMass.x) {
+                    drawCrossingLine = true;
+                }
+            } else {
+                movingTxt = "";
+            }
+            
+            if (drawCrossingLine)
+            {
+                Point pt1(poleCenterMass.x, 0);
+                Point pt2(poleCenterMass.x, S.height);
+                line(frame, pt1, pt2, Scalar(0,0,255), 50, LINE_AA);
+                drawCrossingLine = false;
+            }
+            
+            ostringstream text;
+            text << movingTxt << "  PLANE ON FRAME  " << movingTxt;
+            matPrint(frame, Point(1, S.width/2), Scalar(0), text.str());
+            drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
         }
         
-        //        imshow("Detected planes", frame);
-        //        imshow("frameSegmentedPlane", frameSegmentedPlane);
+        // imshow("Detected planes", frame);
+        // imshow("frameSegmentedPlane", frameSegmentedPlane);
         // drawArrows(frame, pts, nextPts, status, Scalar(255, 0, 0));
         
         for (uint i=0; i<pts.size(); i++) {
             circle(frame, pts[i], 2, Scalar(255,255,0));
         }
         
-        frameGray.copyTo(flowPrev);
+        frameGray.copyTo(flowPrev); // save frame for optical flow
         imshow("pts", frame);
     }
     
