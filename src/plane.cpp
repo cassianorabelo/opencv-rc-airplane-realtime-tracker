@@ -2,7 +2,7 @@
 //  plane.cpp
 //  DAI-questao-03-avião
 //
-//  Created by Cassiano Rabelo on 10/20/16.
+//  Created by Cassiano Rabelo on oct/16.
 //  Copyright © 2016 Cassiano Rabelo. All rights reserved.
 //
 
@@ -11,23 +11,11 @@
 using namespace std;
 using namespace cv;
 
-bool gDebug = false;
 bool gPause = false;
 
-void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly) {
-  int frames = (int)cap.get(CV_CAP_PROP_FRAME_COUNT);
+void onSkipFrames(VideoCapture &cap, int numFrames) {
+  int newFrame = 0;
   int curFrame = (int)cap.get(CV_CAP_PROP_POS_FRAMES);
-  
-  
-  if (jumpDirectly) {
-    cap.set( CAP_PROP_POS_FRAMES, numFrames );
-    return;
-  }
-  
-  int newFrame = curFrame + numFrames;
-  
-  if (newFrame > frames || newFrame < 1)
-    curFrame = numFrames = 0;
   
   if (numFrames > 0) {
     if (curFrame <= 370) {
@@ -40,10 +28,11 @@ void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly) {
       newFrame = 1255;
     } else if (curFrame > 1200 && curFrame < 1550) {
       newFrame = 1550;
-    } else if (curFrame > 1520 && curFrame < 1830) {
+    } else if (curFrame >= 1550) {
       newFrame = 1830;
     }
-  } else if (numFrames != 666) {
+    
+  } else {
     if (curFrame <= 370) {
       newFrame = 360;
     } else if (curFrame > 370 && curFrame < 690) {
@@ -56,15 +45,12 @@ void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly) {
       newFrame = 1180;
     } else if (curFrame > 1520 && curFrame < 1830) {
       newFrame = 1510;
-    } else if (curFrame > 1830) {
+    } else if (curFrame >= 1830) {
       newFrame = 1830;
     }
   }
   
   cap.set( CAP_PROP_POS_FRAMES, newFrame );
-  
-  if (gDebug)
-    cout << cap.get(CAP_PROP_POS_FRAMES) << endl;
 }
 
 void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss) {
@@ -173,7 +159,7 @@ void detectUAV(InputArray _in,
                const vector<uchar> &status,
                vector<double> &magnitude
                ) {
-
+  
   
   Mat contoursImg;
   _in.getMat().copyTo(contoursImg);
@@ -349,19 +335,11 @@ void detectPole(InputArray _in,
     
     // check if image goes from top to bottom
     Rect bounding = boundingRect(_contours[i]);
-    if (bounding.y > 1 || bounding.height < (_in.getMat().rows-2) ) { // the -2 is to fit the contour inside the frame
-      if (gDebug)
-        cout << "i: " << i << " - excluded by bounding limits" << endl;
-      continue;
-    }
+    if (bounding.y > 1 || bounding.height < (_in.getMat().rows-2) ) continue;  // the -2 is to fit the contour inside the frame
     
     // check if the aspect ratio is valid
     float aspectRatio = (float)bounding.width / bounding.height;
-    if (aspectRatio > 0.2) {
-      if (gDebug)
-        cout << "i: " << i << " - excluded by aspect ratio: " << aspectRatio << endl;
-      continue;
-    }
+    if (aspectRatio > 0.2) continue;
     
     // check perimeter
     if(_contours[i].size() < minPerimeterPoints || _contours[i].size() > maxPerimeterPoints) continue;
@@ -370,11 +348,7 @@ void detectPole(InputArray _in,
     double arcLen = arcLength(_contours[i],true);
     vector< Point > approxCurve;
     approxPolyDP(_contours[i], approxCurve, arcLen * 0.005, true);
-    if(approxCurve.size() < 4 || approxCurve.size() > 6 || !isContourConvex(approxCurve)) {
-      if (gDebug)
-        cout << "i: " << i << " - excluded by approx. size: " << approxCurve.size() << endl;
-      continue;
-    }
+    if(approxCurve.size() < 4 || approxCurve.size() > 6 || !isContourConvex(approxCurve)) continue;
     _candidates.push_back(_contours[i]);
   }
 }

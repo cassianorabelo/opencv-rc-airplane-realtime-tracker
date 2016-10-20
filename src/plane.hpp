@@ -2,7 +2,7 @@
 //  plane.hpp
 //  DAI-questao-03-avião
 //
-//  Created by Cassiano Rabelo on 10/20/16.
+//  Created by Cassiano Rabelo on oct/16.
 //  Copyright © 2016 Cassiano Rabelo. All rights reserved.
 //
 
@@ -23,7 +23,7 @@ using namespace cv;
 extern bool gDebug;
 extern bool gPause;
 
-void onSkipFrames(VideoCapture &cap, int numFrames, bool jumpDirectly = false);
+void onSkipFrames(VideoCapture &cap, int numFrames);
 void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss);
 void convertToGrey(InputArray _in, OutputArray _out);
 void pause(VideoCapture &cap);

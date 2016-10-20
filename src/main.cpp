@@ -1,3 +1,11 @@
+//
+//  main.cpp
+//  DAI-questao-03-avião
+//
+//  Created by Cassiano Rabelo on oct/16.
+//  Copyright © 2016 Cassiano Rabelo. All rights reserved.
+//
+
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
@@ -55,7 +63,7 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    //
+    // MATs
     Mat frame;
     UMat frameGray, frameSegmentedPole, frameSegmentedPlane;
     
@@ -79,7 +87,8 @@ int main(int argc, char *argv[]) {
     // ROI top left (TL) and bottom right (BR) in respect to the full frame
     Point roiTL = Point(S.width*0.3, S.height*0.35);
     Point roiBR = Point(S.width*0.7, S.height*0.7);
-    
+
+    // get frame
     inputVideo >> frame;
     if (frame.empty()) {
         cerr << "erro" << endl;
@@ -87,17 +96,16 @@ int main(int argc, char *argv[]) {
     }
     convertToGrey(frame, flowPrev);
     
-    // stores the plane position previous and current
-    Point planePosPrev(0,0);
-    Point planePosCurr(0,0);
-    bool planeVisible = false;
-    int planeDirection = 0;
-    uint frameLastSeen = 0;
-    uint frameIntervalBeforeReset = 3; // min # of frames without plane to reset the system
-    uint maxPlaneDisplacement = S.width * 0.8; // maximum distance plane will travel between frames
-    const uint marginSize = 200; // when the plane appears, it must be inside the margin (in pixels)
-    Point planesCounter(0,0); // x = moving left, y = moving right
+    Point planePosPrev(0,0);        // plane position: previous
+    Point planePosCurr(0,0);        // plane position: current
+    bool planeVisible = false;      // plane in frame?
+    int planeDirection = 0;         // plane moving direction
+    uint frameLastSeen = 0;         // plane last seen frame
+    uint frameIntervalBeforeReset = 3;          // min # of frames without plane to reset the system
+    uint maxPlaneDisplacement = S.width * 0.8;  // maximum distance plane will travel between frames
+    const uint marginSize = S.width * 0.15;     // when the plane appears, it must be inside the margin (in pixels)
     
+    // Output
     if (writeOutput) {
         int FPS = 30;
         outputVideo = VideoWriter(output, CV_FOURCC('M','J','P','G'), FPS, S, true);
@@ -116,25 +124,20 @@ int main(int argc, char *argv[]) {
         
     }
     
+    // LOOP
     for (;;) {
         
         char key = (char)waitKey(10); // 10ms/frame
         if(key == 27) break;
         
+        // allows to skip frames (faster to debug)
         switch (key)
         {
             case '[':
-                onSkipFrames(inputVideo, -25);
+                onSkipFrames(inputVideo, -1);
                 break;
             case ']':
-                onSkipFrames(inputVideo, 50);
-                break;
-            case 'x':
-                onSkipFrames(inputVideo, 1833, true);
-                break;
-            case 'd':
-                gDebug = !gDebug;
-                cout << "debug=" << (gDebug?"ON":"OFF") << endl;
+                onSkipFrames(inputVideo, +1);
                 break;
             case 'p':
                 pause(inputVideo);
@@ -227,11 +230,6 @@ int main(int argc, char *argv[]) {
             { // the plane was visible and a few frames have ellapsed with no plane in sight...
                 planeVisible = false;
                 planeDirection = 0; // no direction on record
-                if (planeDirection == 1) {
-                    planesCounter.x++;
-                } else if (planeDirection == -1) {
-                    planesCounter.y++;
-                }
             }
         }
         
