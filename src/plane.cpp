@@ -173,14 +173,23 @@ void detectUAV(InputArray _in,
                const vector<uchar> &status,
                vector<double> &magnitude
                ) {
-  
-  int minPerimeterPoints = 50;
-  int maxPerimeterPoints = 3000;
-  vector<vector<Point>> tmpCandidates;
-  int maxMagnitude = 20;
+
   
   Mat contoursImg;
   _in.getMat().copyTo(contoursImg);
+  double aspectRatio = contoursImg.cols/(float)contoursImg.rows;
+  
+  int minPerimeterPoints = 50;
+  int maxPerimeterPoints = 3000;
+  
+  if (aspectRatio < 1) // image is taller than wider (needed due to bug in reading vertical videos)
+  {
+    maxPerimeterPoints = 500;
+  }
+  
+  vector<vector<Point>> tmpCandidates;
+  int maxMagnitude = 20;
+  
   
   Mat temp;
   contoursImg.copyTo(temp);

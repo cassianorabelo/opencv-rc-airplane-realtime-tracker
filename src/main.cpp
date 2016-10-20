@@ -35,8 +35,9 @@ int main(int argc, char *argv[]) {
     }
     
     string output;                      // recorded video
-    bool saveOutput = false;
     string input;                       // input video
+    bool writeOutput = false;           // write output?
+    VideoWriter outputVideo;
     
     for (int i = 1; i < argc; ++i)
     {
@@ -44,6 +45,7 @@ int main(int argc, char *argv[]) {
             input = argv[++i];
         } else if (string(argv[i]) == "--output") {
             output = argv[++i];
+            writeOutput = true;
         } else if (string(argv[i]) == "--help") {
             help(argv[0]);
             return -1;
@@ -95,6 +97,24 @@ int main(int argc, char *argv[]) {
     uint maxPlaneDisplacement = S.width * 0.8; // maximum distance plane will travel between frames
     const uint marginSize = 200; // when the plane appears, it must be inside the margin (in pixels)
     Point planesCounter(0,0); // x = moving left, y = moving right
+    
+    if (writeOutput) {
+        int FPS = 30;
+        outputVideo = VideoWriter(output, CV_FOURCC('M','J','P','G'), FPS, S, true);
+        
+        if (!outputVideo.isOpened())
+            cerr << "Nao foi possivel abrir o arquivo de video para escrita" << endl;
+        
+        cout
+        << "Salvando frames no arquivo: " << output << " com as seguintes caracteristicas:" << endl
+        << "Largura=" << S.width << endl
+        << "Altura=" << S.height << endl
+        << "FPS=" << FPS << endl
+        << "CODEC: MJPG - Motion JPEG" << endl
+        << "------------------------------------------------------------------------------" << endl
+        << "PARA SAIR APERTE A TECLA 'ESC'" << endl;
+        
+    }
     
     for (;;) {
         
@@ -253,6 +273,10 @@ int main(int argc, char *argv[]) {
         
         frameGray.copyTo(flowPrev); // save frame for optical flow
         imshow("pts", frame);
+        
+        if (writeOutput)
+            outputVideo.write(frame);
+        
     }
     
     return 0;
