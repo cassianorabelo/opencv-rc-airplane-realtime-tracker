@@ -64,7 +64,7 @@
       <CommandLineArguments>
          <CommandLineArgument
             argument = "--video &quot;/Users/cassianorabelo/Dropbox/Doutorado/2016-02/DAI/01_source/TP/videos/20.mov&quot;"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "&quot;/Users/cassianorabelo/Dropbox/Doutorado/2016-02/DAI/01_source/TP/videos/canny.png&quot;"
@@ -72,7 +72,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--video &quot;/Users/cassianorabelo/Dropbox/Doutorado/2016-02/DAI/01_source/TP/videos/20.mp4&quot;"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--cascade /Users/cassianorabelo/Dropbox/Doutorado/2016-02/DAI/trabalho2/haar/trained_classifiers/deck_v1.xml"
