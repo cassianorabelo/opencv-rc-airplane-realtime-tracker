@@ -225,8 +225,6 @@ void detectUAV(InputArray _in,
         //        imshow("roi", roiHSV);
         //        imshow("sky", inRangeRes);
         
-        
-        
         // if convex, slim chance of being a plane
         if(isContourConvex(_contours[i])) continue;
         
@@ -293,6 +291,13 @@ bool opticalFlow(InputOutputArray &flowPrev,
     
     calcOpticalFlowPyrLK(flowPrev, frameGray, pts, nextPts, status, err);
     return true;
+}
+
+void drawCrossingSign(InputArray _in,
+                      const Point &pt1,
+                      const Point &pt2)
+{
+    line(_in.getMat(), pt1, pt2, Scalar(0,0,255), 50, LINE_AA);
 }
 
 /**
@@ -510,14 +515,9 @@ int main(int argc, char *argv[]) {
     bool planeVisible = false;
     int planeDirection = 0;
     uint frameLastSeen = 0;
-    uint visibleFor = 0; // num of frames that the contour is visible
-    const uint distConsiderStatic = S.width * 0.015; // 1.5% of the width;
     uint frameIntervalBeforeReset = 3; // min # of frames without plane to reset the system
-    uint frameIntervalForVisibility = 2; // min # of frames with plane to be considered visible
-    
+    uint maxPlaneDisplacement = S.width * 0.8; // maximum distance plane will travel between frames
     const uint marginSize = 200; // when the plane appears, it must be inside the margin (in pixels)
-    const uint maxPlaneVertDisp = 200; // maximum vertical displacement of the plane per frame (in pixels)
-    
     Point planesCounter(0,0); // x = moving left, y = moving right
     
     for (;;) {
@@ -593,9 +593,9 @@ int main(int argc, char *argv[]) {
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
-        //         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
-        //         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
-        //         imshow("mask", mask);
+         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+         imshow("mask", mask);
         
         
         // _CR_ DEBUG
@@ -623,20 +623,6 @@ int main(int argc, char *argv[]) {
             { // planeVisible
                 planePosPrev = planePosCurr;
                 planePosCurr = Point(bounding.x, bounding.y);
-                
-                visibleFor++;
-                
-                // the plane has been visible for at least "frameIntervalForVisibility" frames
-                if (visibleFor > frameIntervalForVisibility)
-                {
-                    int deltaX = planePosCurr.x - planePosPrev.x;
-                    if (deltaX > 0) // find the direction of flight
-                    {
-                        planeDirection = 1;
-                    } else {
-                        planeDirection = -1;
-                    }
-                } // visible for...
             }
         }
         else // contours != 1
@@ -645,49 +631,34 @@ int main(int argc, char *argv[]) {
             { // the plane was visible and a few frames have ellapsed with no plane in sight...
                 planeVisible = false;
                 planeDirection = 0; // no direction on record
-                visibleFor = 0;
                 if (planeDirection == 1) {
                     planesCounter.x++;
                 } else if (planeDirection == -1) {
                     planesCounter.y++;
                 }
-            } else if (planeVisible && visibleFor > 3) {
-                //                if (planePosCurrplaneDirection == 1) {
-                //                }
             }
         }
         
         if (planeVisible)
         {
-            
-            cout << planeDirection << "..." << poleCenterMass.x << " - " << planePosPrev.x << " - " << planePosCurr.x << endl;
-//            cout << planeDirection << endl;
             string movingTxt;
-            bool drawCrossingLine = false;
-            
-            if (planeDirection == 1)
+            int deltaX = planePosCurr.x - planePosPrev.x;
+            if (deltaX > 0 && abs(deltaX) < maxPlaneDisplacement) // find the direction of flight
             {
+                planeDirection = 1;
                 movingTxt = ">>>";
                 if (planePosCurr.x > poleCenterMass.x && planePosPrev.x < poleCenterMass.x) {
-                    drawCrossingLine = true;
+                    drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
                 }
-            }
-            else if (planeDirection == -1)
-            {
+            } else if (deltaX < 0 && abs(deltaX) < maxPlaneDisplacement) {
+                planeDirection = -1;
                 movingTxt = "<<<";
                 if (planePosCurr.x < poleCenterMass.x && planePosPrev.x > poleCenterMass.x) {
-                    drawCrossingLine = true;
+                   drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
                 }
             } else {
+                planeDirection = 0;
                 movingTxt = "";
-            }
-            
-            if (drawCrossingLine)
-            {
-                Point pt1(poleCenterMass.x, 0);
-                Point pt2(poleCenterMass.x, S.height);
-                line(frame, pt1, pt2, Scalar(0,0,255), 50, LINE_AA);
-                drawCrossingLine = false;
             }
             
             ostringstream text;
