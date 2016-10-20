@@ -74,7 +74,7 @@ void matPrint(Mat &img, Scalar fontColor, const string &ss) {
     int lineOffsY;
     double fontScale = 0.5;
     int fontThickness = 1;
-    Size fontSize = cv::getTextSize("T[]", fontFace, fontScale, fontThickness, 0);
+    Size fontSize = getTextSize("T[]", fontFace, fontScale, fontThickness, 0);
     
     Point org;
     org.x = 10;
@@ -169,6 +169,7 @@ double getOrientation(vector<Point> &pts,
  * @brief Detects the UAV based on contour conditions
  */
 void detectUAV(InputArray _in,
+               InputArray _inColor,
                vector<vector<Point>> &candidates,
                const vector<Point2f> &prevPts,
                const vector<Point2f> &nextPts,
@@ -207,6 +208,26 @@ void detectUAV(InputArray _in,
         // check area
         double area = contourArea(_contours[i]);
         if (area < 800) continue;
+        
+        // check to see if most of the contour is composed of blue color 
+        Mat roi(_inColor.getMat(), bounding);
+        Mat roiHSV, inRangeRes;
+        roi.copyTo(roiHSV);
+        cvtColor(roi, roiHSV, CV_BGR2HSV);
+        inRange(roiHSV, Scalar(70, 50, 50), Scalar(130, 255, 255), inRangeRes );
+        Scalar sumResult = sum(inRangeRes) / (inRangeRes.cols*inRangeRes.rows);
+        
+        if (sumResult[0] > 250) {
+            // cout << "sum: " << sumResult << endl;
+            continue;
+        }
+        //        imshow("roi", roiHSV);
+        //        imshow("sky", inRangeRes);
+
+
+        
+        // if convex, slim chance of being a plane
+        if(isContourConvex(_contours[i])) continue;
         
         tmpCandidates.push_back(_contours[i]);
     }
@@ -280,7 +301,7 @@ bool opticalFlow(InputOutputArray &flowPrev,
  */
 void segmentUAV(InputArray _in, OutputArray _out) {
     
-    threshold(_in, _out, 220, 255, THRESH_BINARY | THRESH_OTSU);
+    threshold(_in, _out, 240, 255, THRESH_BINARY | THRESH_OTSU);
     
     // ERODE
     int morph_size = 1;
@@ -457,8 +478,8 @@ int main(int argc, char *argv[]) {
     // opticalFlow
     UMat flowPrev;
     uint points = 1000;
-    vector<cv::Point2f> pts(points);
-    vector<cv::Point2f> nextPts(points);
+    vector<Point2f> pts(points);
+    vector<Point2f> nextPts(points);
     vector<unsigned char> status(points);
     vector<float> err;
     
@@ -569,13 +590,13 @@ int main(int argc, char *argv[]) {
         if (!opticalFlow(flowPrev, frameGray, pts, nextPts, status, err)) continue;
         vector<double> magnitude;
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
-        detectUAV(frameSegmentedPlane, planeContours, pts, nextPts, status, magnitude);
+        detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
-        /*
-         cv::Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+        
+         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
          drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
          imshow("mask", mask);
-         */
+        
         
         // _CR_ DEBUG
         //        if (planeContours.size() > 1) {
@@ -589,19 +610,30 @@ int main(int argc, char *argv[]) {
             
             if (!planeVisible) {
 
-                if (bounding.x > marginSize && bounding.x < (S.width - marginSize)) { // the plane is outside the margin
-//                    cout << "outside margin: " << bounding.x << endl;
+                // the plane is outside the margin, which means it teleported
+                if (bounding.x > marginSize && bounding.x < (S.width - marginSize)) {
+                    // cout << "outside margin: " << bounding.x << endl;
                 } else {
-                    planePosCurr = Point(bounding.x, bounding.y); // we have no record of previous position
-                    planeVisible = true; // plane just appeared;
-                    // cout << "[x: " << bounding.x << "]" << "[y: " << bounding.y << "]" << endl;
+                    planePosCurr = Point(bounding.x, bounding.y);
+                    double dist = norm(Mat(planePosPrev), Mat(planePosCurr)); // how much did the contour move?
+                    if (frameLastSeen > 10 && planeDirection == 0 && dist < distConsiderStatic) {
+                        // cout << "[" << curFrame << "] parado 111" << endl;
+                        planeVisible = false;
+                        planeDirection = 0; // no direction on record
+                        visibleFor = 0;
+                        
+                    } else {
+                        planeVisible = true; // plane just appeared;
+                        // cout << "[x: " << bounding.x << "]" << "[y: " << bounding.y << "]" << endl;
+                    }
+                    
                 }
                 
             } else { // planeVisible
                 
                 planePosPrev = planePosCurr;
                 planePosCurr = Point(bounding.x, bounding.y);
-                double dist = norm(Mat(planePosPrev), cv::Mat(planePosCurr)); // how much did the contour move?
+                double dist = norm(Mat(planePosPrev), Mat(planePosCurr)); // how much did the contour move?
                 
                 if (dist < distConsiderStatic) { // there was no movement...
                     
@@ -611,7 +643,7 @@ int main(int argc, char *argv[]) {
                         planeVisible = false;
                         planeDirection = 0; // no direction on record
                         visibleFor = 0;
-                        cout << "[" << curFrame << "] parado" << endl;
+                        // cout << "[" << curFrame << "] parado" << endl;
                     }
                     
                 } else {
@@ -621,7 +653,7 @@ int main(int argc, char *argv[]) {
                     if (visibleFor > 1) {
                         staticFor = 0;
                         uint verticalDisp = abs(planePosPrev.y - planePosCurr.y);
-                        cout << verticalDisp << endl;
+                        // cout << verticalDisp << endl;
                         if (verticalDisp > maxPlaneVertDisp) {
                             // cout << "too much: " << verticalDisp << endl;
                         }
@@ -636,7 +668,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             
-        } else { // too many contours...
+        } else { // contours != 1
             
             if (planeVisible && curFrame - frameLastSeen > frameIntervalBeforeReset) {
                 planeVisible = false;
