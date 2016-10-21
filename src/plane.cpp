@@ -85,8 +85,8 @@ void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss) {
   Size fontSize = cv::getTextSize("T[]", fontFace, fontScale, fontThickness, 0);
   
   Point org;
-  org.x = 10;
-  org.y = 3 * fontSize.height/ 2;
+  org.x = pos.x - fontSize.width;
+  org.y = pos.y - fontSize.height/ 2;
   putText(img, ss, org, fontFace, fontScale, Scalar(255, 255, 255), fontThickness, LINE_AA);
 }
 
@@ -162,13 +162,15 @@ double getOrientation(vector<Point> &pts,
   }
   
   // Draw the principal components
-  circle(img, posCenter, 3, Scalar(255, 0, 255), 2);
-  
-  Point start(posCenter - 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
-  Point end(posCenter + 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
-  
-  line(img, start, end, CV_RGB(255, 255, 0));
-  line(img, posCenter, posCenter + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255));
+  if (gDebug) {
+    circle(img, posCenter, 3, Scalar(255, 0, 255), 2);
+    
+    Point start(posCenter - 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
+    Point end(posCenter + 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
+    
+    line(img, start, end, CV_RGB(255, 255, 0));
+    line(img, posCenter, posCenter + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255));
+  }
   
   return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
 }
@@ -396,13 +398,12 @@ void calcOFlowMagnitude(const vector<Point2f> &prevPts,
   }
 }
 
-void drawArrows(UMat& _frame,
+void drawArrows(Mat& frame,
                 const vector<Point2f>&prevPts,
                 const vector<Point2f>&nextPts,
                 const vector<uchar>&status,
                 Scalar line_color) {
   
-  Mat frame = _frame.getMat(ACCESS_WRITE);
   for (size_t i = 0; i < prevPts.size(); ++i) {
     if (status[i]) {
       int line_thickness = 1;

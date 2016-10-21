@@ -67,6 +67,10 @@ int main(int argc, char *argv[]) {
     Mat frame;
     UMat frameGray, frameSegmentedPole, frameSegmentedPlane;
     
+    // DEBUG MATs
+    Mat matOutput;
+    
+    
     // opticalFlow
     UMat flowPrev;
     uint points = 1000;
@@ -122,7 +126,6 @@ int main(int argc, char *argv[]) {
         << "CODEC: MJPG - Motion JPEG" << endl
         << "------------------------------------------------------------------------------" << endl
         << "PARA SAIR APERTE A TECLA 'ESC'" << endl;
-        
     }
     
     // LOOP
@@ -158,7 +161,12 @@ int main(int argc, char *argv[]) {
             break;
         }
         
-        uint curFrame = inputVideo.get(CAP_PROP_POS_FRAMES);
+        if (S.width != 1280) {
+            // resize the frame to development resolution
+            resize(frame, frame, Size(1280,720));
+        }
+        
+        uint curFrame = inputVideo.get(CAP_PROP_POS_FRAMES); // current frame number
         
         convertToGrey(frame, frameGray);
         
@@ -167,16 +175,15 @@ int main(int argc, char *argv[]) {
         Point poleCenterMass;
         isolatePole(frame, frameGray, frameSegmentedPole, roiRect, poleContours, poleCenterMass);
         
-        // DRAW POLE
+        // DRAW POLE (DEBUG)
         if (gDebug) {
-            drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_AA, noArray(), INT_MAX, roiTL);
-            imshow("Detected candidates", frame);
+            frame.copyTo(matOutput);
+            drawContours(matOutput, poleContours, -1, Scalar(0,0,255), 1, LINE_AA, noArray(), INT_MAX, roiTL);
         }
         
         // DETECT AIRPLANE
         vector< vector< Point > > planeContours;
         segmentUAV(frameGray, frameSegmentedPlane);
-        //  imshow("segmented UAV", frameSegmentedPlane);
         
         // calculate, using optical flow, the magnitude of the movement
         if (!opticalFlow(flowPrev, frameGray, pts, nextPts, status, err)) continue;
@@ -184,20 +191,15 @@ int main(int argc, char *argv[]) {
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
-        Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
-        drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
-        imshow("mask", mask);
-        
-        
-        // _CR_ DEBUG
-        //        if (planeContours.size() > 1) {
-        //            cout << "[" << curFrame << "] " << "[num. contours: " << planeContours.size() << "]" << endl;
-        //        }
+        if (gDebug) {
+            Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+            drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+            resize(mask, mask, Size(), 0.5, 0.5);
+            imshow("Airplane Mask", mask);
+        }
         
         Rect bounding;
-        
-        // tem q resolver isso aqui pra quando for > 1
-        if (planeContours.size() == 1)
+        if (planeContours.size() == 1) // by now all the tests have passed. Should have only one contour
         {
             frameLastSeen = curFrame;
             bounding = boundingRect(planeContours[0]);
@@ -216,7 +218,7 @@ int main(int argc, char *argv[]) {
                 planePosCurr = Point(bounding.x, bounding.y);
             }
         }
-        else // contours != 1
+        else // contours != 1 (if not only one contour, ignore... the system will correct itself)
         {
             if (planeVisible && curFrame - frameLastSeen > frameIntervalBeforeReset)
             { // the plane was visible and a few frames have ellapsed with no plane in sight...
@@ -249,20 +251,34 @@ int main(int argc, char *argv[]) {
             
             ostringstream text;
             text << movingTxt << "  PLANE ON FRAME  " << movingTxt;
-            matPrint(frame, Point(1, S.width/2), Scalar(0), text.str());
-            drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
+            matPrint(frame, Point(S.width/2-50, 30), Scalar(0), text.str());
+            
+            if (gDebug) {
+                drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
+                drawContours(matOutput, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
+            }
+            
         }
         
-        // imshow("Detected planes", frame);
-        // imshow("frameSegmentedPlane", frameSegmentedPlane);
-        // drawArrows(frame, pts, nextPts, status, Scalar(255, 0, 0));
-        
-        for (uint i=0; i<pts.size(); i++) {
-            circle(frame, pts[i], 2, Scalar(255,255,0));
+        if (gDebug)
+        {
+            // imshow("Segmented", frameSegmentedPlane);
+            // drawArrows(matOutput, pts, nextPts, status, Scalar(255, 0, 0));
+            
+            for (uint i=0; i<pts.size(); i++) {
+                circle(matOutput, pts[i], 2, Scalar(255,255,0));
+            }
         }
         
         frameGray.copyTo(flowPrev); // save frame for optical flow
-        imshow("pts", frame);
+        
+        if (gDebug) {
+            resize(matOutput, matOutput, Size(), 0.5, 0.5);
+            imshow("[Debug] DAI . Questao #2 . Cassiano Rabelo", matOutput);
+        }
+        
+        matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to display debug windows");
+        imshow( "DAI . Questao #2 . Cassiano Rabelo", frame); // display final result
         
         if (writeOutput)
             outputVideo.write(frame);

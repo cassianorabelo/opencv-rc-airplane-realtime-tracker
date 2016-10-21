@@ -91,7 +91,7 @@ void calcOFlowMagnitude(const vector<Point2f> &prevPts,
                         const vector<uchar> &status,
                         vector<double> &magnitude);
 
-void drawArrows(UMat& _frame,
+void drawArrows(Mat& _frame,
                 const vector<Point2f>&prevPts,
                 const vector<Point2f>&nextPts,
                 const vector<uchar>&status,
