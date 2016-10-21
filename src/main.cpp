@@ -69,6 +69,7 @@ int main(int argc, char *argv[]) {
     
     // DEBUG MATs
     Mat matOutput;
+    Mat matFlow;
     
     
     // opticalFlow
@@ -178,7 +179,7 @@ int main(int argc, char *argv[]) {
         // DRAW POLE (DEBUG)
         if (gDebug) {
             frame.copyTo(matOutput);
-            drawContours(matOutput, poleContours, -1, Scalar(0,0,255), 1, LINE_AA, noArray(), INT_MAX, roiTL);
+            drawContours(matOutput, poleContours, -1, Scalar(150,60,30), 2, LINE_AA, noArray(), INT_MAX, roiTL);
         }
         
         // DETECT AIRPLANE
@@ -191,11 +192,9 @@ int main(int argc, char *argv[]) {
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
+        Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
         if (gDebug) {
-            Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
             drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
-            resize(mask, mask, Size(), 0.5, 0.5);
-            imshow("Airplane Mask", mask);
         }
         
         Rect bounding;
@@ -251,37 +250,40 @@ int main(int argc, char *argv[]) {
             
             ostringstream text;
             text << movingTxt << "  PLANE ON FRAME  " << movingTxt;
-            matPrint(frame, Point(S.width/2-50, 30), Scalar(0), text.str());
-            
+            matPrint(frame, Point(S.width/2-50, 60), Scalar(0), text.str());
+            drawContours(frame, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
             if (gDebug) {
-                drawContours(frame, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
-                drawContours(matOutput, planeContours, -1, Scalar(0,0,255), 1, LINE_AA);
+                drawContours(matOutput, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
             }
             
-        }
-        
-        if (gDebug)
-        {
-            // imshow("Segmented", frameSegmentedPlane);
-            // drawArrows(matOutput, pts, nextPts, status, Scalar(255, 0, 0));
-            
-            for (uint i=0; i<pts.size(); i++) {
-                circle(matOutput, pts[i], 2, Scalar(255,255,0));
-            }
         }
         
         frameGray.copyTo(flowPrev); // save frame for optical flow
         
-        if (gDebug) {
-            resize(matOutput, matOutput, Size(), 0.5, 0.5);
-            imshow("[Debug] DAI . Questao #2 . Cassiano Rabelo", matOutput);
+        if (gDebug)
+        {
+            mask.copyTo(matFlow);
+            cvtColor(matFlow, matFlow, CV_GRAY2BGR);
+            
+            for (uint i=0; i<pts.size(); i++) {
+                circle(matOutput, pts[i], 3, Scalar(0,255,0), 1, LINE_AA);
+                circle(matFlow, pts[i], 3, Scalar(0,255,0), 1, LINE_AA);
+            }
+            
+            resize(matFlow, matFlow, Size(), 0.25, 0.25);
+            matFlow.copyTo(matOutput(Rect(10,10,matFlow.cols, matFlow.rows)));
+            frame = matOutput;
+            matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn OFF debug mode");
+        }
+        else
+        {
+            matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn ON debug mode");
         }
         
-        matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to display debug windows");
-        imshow( "DAI . Questao #2 . Cassiano Rabelo", frame); // display final result
+        imshow("DAI . Questao #2 . Cassiano Rabelo", frame);
         
         if (writeOutput)
-            outputVideo.write(frame);
+            outputVideo.write(matOutput);
         
     }
     

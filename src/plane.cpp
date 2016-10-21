@@ -11,7 +11,7 @@
 using namespace std;
 using namespace cv;
 
-bool gDebug = false;
+bool gDebug = true;
 bool gPause = false;
 
 void onSkipFrames(VideoCapture &cap, int numFrames) {
@@ -163,13 +163,12 @@ double getOrientation(vector<Point> &pts,
   
   // Draw the principal components
   if (gDebug) {
-    circle(img, posCenter, 3, Scalar(255, 0, 255), 2);
-    
     Point start(posCenter - 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
     Point end(posCenter + 0.5 * Point(eigen_vecs[0].x * eigen_val[0], eigen_vecs[0].y * eigen_val[0]));
     
-    line(img, start, end, CV_RGB(255, 255, 0));
-    line(img, posCenter, posCenter + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255));
+    line(img, start, end, CV_RGB(255, 255, 0), 2, LINE_AA);
+    line(img, posCenter, posCenter + 0.02 * Point(eigen_vecs[1].x * eigen_val[1], eigen_vecs[1].y * eigen_val[1]) , CV_RGB(0, 255, 255), 2, LINE_AA);
+    circle(img, posCenter, 5, Scalar(255, 0, 0), CV_FILLED, LINE_AA);
   }
   
   return atan2(eigen_vecs[0].y, eigen_vecs[0].x);
@@ -394,47 +393,6 @@ void calcOFlowMagnitude(const vector<Point2f> &prevPts,
       Point2f q = nextPts[i];
       double hypotenuse = sqrt( (double)(p.y - q.y)*(p.y - q.y) + (double)(p.x - q.x)*(p.x - q.x) );
       magnitude[i] = hypotenuse;
-    }
-  }
-}
-
-void drawArrows(Mat& frame,
-                const vector<Point2f>&prevPts,
-                const vector<Point2f>&nextPts,
-                const vector<uchar>&status,
-                Scalar line_color) {
-  
-  for (size_t i = 0; i < prevPts.size(); ++i) {
-    if (status[i]) {
-      int line_thickness = 1;
-      
-      Point2f p = prevPts[i];
-      Point2f q = nextPts[i];
-      
-      double angle = atan2((double) p.y - q.y, (double) p.x - q.x);
-      
-      double hypotenuse = sqrt( (double)(p.y - q.y)*(p.y - q.y) + (double)(p.x - q.x)*(p.x - q.x) );
-      
-      if (hypotenuse < 1.0)
-        continue;
-      
-      // Here we lengthen the arrow by a factor of three.
-      q.x = (int) (p.x - 3 * hypotenuse * cos(angle));
-      q.y = (int) (p.y - 3 * hypotenuse * sin(angle));
-      
-      // Now we draw the main line of the arrow.
-      line(frame, p, q, line_color, line_thickness);
-      
-      // Now draw the tips of the arrow. I do some scaling so that the
-      // tips look proportional to the main line of the arrow.
-      
-      p.x = (int) (q.x + 9 * cos(angle + CV_PI / 4));
-      p.y = (int) (q.y + 9 * sin(angle + CV_PI / 4));
-      line(frame, p, q, line_color, line_thickness);
-      
-      p.x = (int) (q.x + 9 * cos(angle - CV_PI / 4));
-      p.y = (int) (q.y + 9 * sin(angle - CV_PI / 4));
-      line(frame, p, q, line_color, line_thickness);
     }
   }
 }

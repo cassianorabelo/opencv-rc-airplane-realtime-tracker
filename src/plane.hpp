@@ -91,11 +91,5 @@ void calcOFlowMagnitude(const vector<Point2f> &prevPts,
                         const vector<uchar> &status,
                         vector<double> &magnitude);
 
-void drawArrows(Mat& _frame,
-                const vector<Point2f>&prevPts,
-                const vector<Point2f>&nextPts,
-                const vector<uchar>&status,
-                Scalar line_color = Scalar(0, 0, 255));
-
 
 #endif /* plane_hpp */
