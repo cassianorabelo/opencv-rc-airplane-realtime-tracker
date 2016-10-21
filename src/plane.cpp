@@ -11,6 +11,7 @@
 using namespace std;
 using namespace cv;
 
+bool gDebug = false;
 bool gPause = false;
 
 void onSkipFrames(VideoCapture &cap, int numFrames) {
@@ -51,6 +52,30 @@ void onSkipFrames(VideoCapture &cap, int numFrames) {
   }
   
   cap.set( CAP_PROP_POS_FRAMES, newFrame );
+}
+
+void isolatePole(Mat &frame,
+                 UMat &frameGray,
+                 UMat &frameSegmentedPole,
+                 const Rect &roiRect,
+                 vector<vector<Point>> &poleContours,
+                 Point &poleCenterMass
+                 ) {
+  
+  segment(frameGray, frameSegmentedPole);
+  Mat roi(frameSegmentedPole.getMat(ACCESS_WRITE), roiRect);
+  
+  // FIND POLE CONTOURS
+  
+  Mat contoursImg;
+  roi.copyTo(contoursImg);
+  detectPole(contoursImg, poleContours);
+  
+  double angle; // stores pole angle
+  for(unsigned int i = 0; i < poleContours.size(); i++) {
+    angle = getOrientation(poleContours[i], frame, poleCenterMass, roiRect.tl());
+  }
+
 }
 
 void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss) {

@@ -87,7 +87,8 @@ int main(int argc, char *argv[]) {
     // ROI top left (TL) and bottom right (BR) in respect to the full frame
     Point roiTL = Point(S.width*0.3, S.height*0.35);
     Point roiBR = Point(S.width*0.7, S.height*0.7);
-
+    Rect roiRect(roiTL, roiBR);
+    
     // get frame
     inputVideo >> frame;
     if (frame.empty()) {
@@ -128,7 +129,7 @@ int main(int argc, char *argv[]) {
     for (;;) {
         
         char key = (char)waitKey(10); // 10ms/frame
-        if(key == 27) break;
+        if(key == 27) break; // ESC to quit
         
         // allows to skip frames (faster to debug)
         switch (key)
@@ -141,6 +142,10 @@ int main(int argc, char *argv[]) {
                 break;
             case 'p':
                 pause(inputVideo);
+                break;
+            case 'd':
+                gDebug = !gDebug;
+                cout << "debug=" << (gDebug?"ON":"OFF") << endl;
                 break;
         }
         
@@ -156,30 +161,17 @@ int main(int argc, char *argv[]) {
         uint curFrame = inputVideo.get(CAP_PROP_POS_FRAMES);
         
         convertToGrey(frame, frameGray);
-        segment(frameGray, frameSegmentedPole);
         
         // ISOLATE THE FLAG POLE
-        Rect roiRect(roiTL, roiBR);
-        Mat roi(frameSegmentedPole.getMat(ACCESS_WRITE), roiRect);
-        
-        // FIND POLE CONTOURS
-        
-        Mat contoursImg;
-        roi.copyTo(contoursImg);
-        
         vector<vector<Point>> poleContours;
-        detectPole(contoursImg, poleContours);
-        
-        //Store the position of the object
-        Point poleCenterMass; // stores pole center of mass
-        double angle; // stores pole angle
-        for(unsigned int i = 0; i < poleContours.size(); i++) {
-            angle = getOrientation(poleContours[i], frame, poleCenterMass, roiTL);
-        }
+        Point poleCenterMass;
+        isolatePole(frame, frameGray, frameSegmentedPole, roiRect, poleContours, poleCenterMass);
         
         // DRAW POLE
-        //    drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_AA, noArray(), INT_MAX, roiTL);
-        //    imshow("Detected candidates", frame);
+        if (gDebug) {
+            drawContours(frame, poleContours, -1, Scalar(0,0,255), 1, LINE_AA, noArray(), INT_MAX, roiTL);
+            imshow("Detected candidates", frame);
+        }
         
         // DETECT AIRPLANE
         vector< vector< Point > > planeContours;
@@ -192,9 +184,9 @@ int main(int argc, char *argv[]) {
         calcOFlowMagnitude(pts, nextPts, status, magnitude);
         detectUAV(frameSegmentedPlane, frame, planeContours, pts, nextPts, status, magnitude);
         
-         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
-         drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
-         imshow("mask", mask);
+        Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
+        drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+        imshow("mask", mask);
         
         
         // _CR_ DEBUG
@@ -248,7 +240,7 @@ int main(int argc, char *argv[]) {
                 planeDirection = -1;
                 movingTxt = "<<<";
                 if (planePosCurr.x < poleCenterMass.x && planePosPrev.x > poleCenterMass.x) {
-                   drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
+                    drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
                 }
             } else {
                 planeDirection = 0;

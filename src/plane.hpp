@@ -28,6 +28,8 @@ void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss);
 void convertToGrey(InputArray _in, OutputArray _out);
 void pause(VideoCapture &cap);
 
+void isolatePole(Mat &frame, UMat &frameGray, UMat &frameSegmentedPole, const Rect &roiRect, vector<vector<Point>> &poleContours, Point &poleCenterMass);
+
 /**
  * @brief Threshold input image
  */
