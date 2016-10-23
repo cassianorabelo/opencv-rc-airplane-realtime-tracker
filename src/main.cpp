@@ -233,13 +233,13 @@ int main(int argc, char *argv[]) {
             if (deltaX > 0 && abs(deltaX) < maxPlaneDisplacement) // find the direction of flight
             {
                 planeDirection = 1;
-                movingTxt = ">>>";
+                movingTxt = ">>>>>>>>>>>";
                 if (planePosCurr.x > poleCenterMass.x && planePosPrev.x < poleCenterMass.x) {
                     drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
                 }
             } else if (deltaX < 0 && abs(deltaX) < maxPlaneDisplacement) {
                 planeDirection = -1;
-                movingTxt = "<<<";
+                movingTxt = "<<<<<<<<<<<";
                 if (planePosCurr.x < poleCenterMass.x && planePosPrev.x > poleCenterMass.x) {
                     drawCrossingSign(frame, Point(poleCenterMass.x, 0), Point(poleCenterMass.x, S.height));
                 }
@@ -249,8 +249,9 @@ int main(int argc, char *argv[]) {
             }
             
             ostringstream text;
-            text << movingTxt << "  PLANE ON FRAME  " << movingTxt;
+            text << "PLANE ON FRAME";
             matPrint(frame, Point(S.width/2-50, 60), Scalar(0), text.str());
+            matPrint(frame, Point(S.width/2-50, 75), Scalar(0), movingTxt);
             drawContours(frame, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
             if (gDebug) {
                 drawContours(matOutput, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
@@ -266,7 +267,6 @@ int main(int argc, char *argv[]) {
             cvtColor(matFlow, matFlow, CV_GRAY2BGR);
             
             for (uint i=0; i<pts.size(); i++) {
-                circle(matOutput, pts[i], 3, Scalar(0,255,0), 1, LINE_AA);
                 circle(matFlow, pts[i], 3, Scalar(0,255,0), 1, LINE_AA);
             }
             
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
         imshow("DAI . Questao #2 . Cassiano Rabelo", frame);
         
         if (writeOutput)
-            outputVideo.write(matOutput);
+            outputVideo.write(frame);
         
     }
     

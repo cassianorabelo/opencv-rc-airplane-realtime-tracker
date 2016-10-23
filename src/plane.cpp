@@ -66,7 +66,6 @@ void isolatePole(Mat &frame,
   Mat roi(frameSegmentedPole.getMat(ACCESS_WRITE), roiRect);
   
   // FIND POLE CONTOURS
-  
   Mat contoursImg;
   roi.copyTo(contoursImg);
   detectPole(contoursImg, poleContours);
@@ -201,7 +200,6 @@ void detectUAV(InputArray _in,
   
   vector<vector<Point>> tmpCandidates;
   int maxMagnitude = 20;
-  
   
   Mat temp;
   contoursImg.copyTo(temp);
