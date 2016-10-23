@@ -84,6 +84,8 @@ int main(int argc, char *argv[]) {
     inputVideo.open(input);
     CV_Assert(inputVideo.isOpened());
     
+    inputVideo.set( CAP_PROP_POS_FRAMES, 390);
+    
     // output resolution based on input
     Size S = Size((int) inputVideo.get(CAP_PROP_FRAME_WIDTH),
                   (int) inputVideo.get(CAP_PROP_FRAME_HEIGHT));
@@ -153,6 +155,10 @@ int main(int argc, char *argv[]) {
                 break;
         }
         
+        int curFrameTmp = (int)inputVideo.get(CV_CAP_PROP_POS_FRAMES);
+        if (curFrameTmp == 399)
+            gPause = true;
+        
         if (gPause)
             continue;
         
@@ -171,15 +177,19 @@ int main(int argc, char *argv[]) {
         
         convertToGrey(frame, frameGray);
         
+        imwrite("02_frame_gray.png", frameGray);
+        
         // ISOLATE THE FLAG POLE
         vector<vector<Point>> poleContours;
         Point poleCenterMass;
         isolatePole(frame, frameGray, frameSegmentedPole, roiRect, poleContours, poleCenterMass);
+        imwrite("03_pole.png", frameSegmentedPole);
         
         // DRAW POLE (DEBUG)
         if (gDebug) {
             frame.copyTo(matOutput);
             drawContours(matOutput, poleContours, -1, Scalar(150,60,30), 2, LINE_AA, noArray(), INT_MAX, roiTL);
+            imwrite("04_pole.png", matOutput);
         }
         
         // DETECT AIRPLANE
@@ -195,6 +205,12 @@ int main(int argc, char *argv[]) {
         Mat mask(frameSegmentedPlane.rows, frameSegmentedPlane.cols, CV_8UC1, Scalar(0));
         if (gDebug) {
             drawContours(mask, planeContours, -1, Scalar(255), CV_FILLED);
+            
+            Mat temp;
+            mask.copyTo(temp);
+            cvtColor(temp, temp, CV_GRAY2BGR);
+            imwrite("07.png", temp);
+            
         }
         
         Rect bounding;

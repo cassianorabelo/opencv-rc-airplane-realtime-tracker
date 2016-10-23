@@ -72,7 +72,7 @@
          </CommandLineArgument>
          <CommandLineArgument
             argument = "--output &quot;uav.mov&quot;"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </CommandLineArgument>
          <CommandLineArgument
             argument = "&quot;/Users/cassianorabelo/Dropbox/Doutorado/2016-02/DAI/01_source/TP/videos/canny.png&quot;"

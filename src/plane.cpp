@@ -68,6 +68,9 @@ void isolatePole(Mat &frame,
   // FIND POLE CONTOURS
   Mat contoursImg;
   roi.copyTo(contoursImg);
+  
+  imwrite("04_pole_roi.png", contoursImg);
+  
   detectPole(contoursImg, poleContours);
   
   double angle; // stores pole angle
@@ -203,9 +206,13 @@ void detectUAV(InputArray _in,
   
   Mat temp;
   contoursImg.copyTo(temp);
+  cvtColor(temp, temp, CV_GRAY2BGR);
   
   vector< vector< Point > > _contours;
   findContours(contoursImg, _contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
+  
+  drawContours(temp, _contours, -1, Scalar(0, 0, 255), 2, LINE_AA);
+  imwrite("05.png", temp);
   
   for(unsigned int i = 0; i < _contours.size(); i++) {
     
@@ -237,8 +244,8 @@ void detectUAV(InputArray _in,
       // cout << "sum: " << sumResult << endl;
       continue;
     }
-    //        imshow("roi", roiHSV);
-    //        imshow("sky", inRangeRes);
+            imshow("roi", roiHSV);
+            imshow("sky", inRangeRes);
     
     // if convex, slim chance of being a plane
     if(isContourConvex(_contours[i])) continue;
@@ -283,6 +290,12 @@ void detectUAV(InputArray _in,
   
   // cout << "mag: " << magnitudeMeanValue[maxValPos] << endl;
   candidates.push_back(tmpCandidates[maxValPos]);
+  
+  contoursImg.copyTo(temp);
+  cvtColor(temp, temp, CV_GRAY2BGR);
+  drawContours(temp, _contours, -1, Scalar(0, 0, 255), 2, LINE_AA);
+  imwrite("06.png", temp);
+  
 }
 
 bool opticalFlow(InputOutputArray &flowPrev,
@@ -299,10 +312,23 @@ bool opticalFlow(InputOutputArray &flowPrev,
   pts.clear();
   goodFeaturesToTrack(frameGray, pts, numPoints, .01, minDist);
   
+  
+  Mat temp;
+  frameGray.copyTo(temp);
+  cvtColor(temp, temp, CV_GRAY2BGR);
+  
+  for (uint i=0;i<pts.size();i++) {
+    circle(temp, Point(pts[i].x, pts[i].y), 5, Scalar(0, 255, 255), CV_FILLED, LINE_AA);
+  }
+  imwrite("06.png", temp);
+  
+  
   if(pts.size() == 0) {
     frameGray.copyTo(flowPrev);
     return false;
   }
+  
+  
   
   calcOpticalFlowPyrLK(flowPrev, frameGray, pts, nextPts, status, err);
   return true;
@@ -351,6 +377,14 @@ void detectPole(InputArray _in,
   
   vector< vector< Point > > _contours;
   findContours(contoursImg, _contours, RETR_EXTERNAL, CHAIN_APPROX_NONE);
+  
+  Mat _inTmp;
+  _in.copyTo(_inTmp);
+  cvtColor(_inTmp, _inTmp, CV_GRAY2BGR);
+  
+  drawContours(_inTmp, _contours, -1, Scalar(0, 0, 255), 2, LINE_AA);
+  imwrite("04_pole_contours.png", _inTmp);
+  
   
   Mat displayOrientation;
   displayOrientation.create( _in.size(), CV_8UC3 );
