@@ -20,38 +20,23 @@
 using namespace std;
 using namespace cv;
 
-extern bool gDebug;
-extern bool gPause;
+extern bool gDebug; // debug mode ON/OFF
+extern bool gPause; // is video paused? ON/OFF
 
-void onSkipFrames(VideoCapture &cap, int numFrames);
-void matPrint(Mat &img, Point pos, Scalar fontColor, const string &ss);
-void convertToGrey(InputArray _in, OutputArray _out);
-void pause(VideoCapture &cap);
-
+// Detection of the pole
 void isolatePole(Mat &frame, UMat &frameGray, UMat &frameSegmentedPole, const Rect &roiRect, vector<vector<Point>> &poleContours, Point &poleCenterMass);
 
-/**
- * @brief Threshold input image
- */
+// Threshold input image
 void segment(InputArray _in, OutputArray _out);
 
-/**
- * @brief Get orientation of the contour using PCA
- * Reference: https://goo.gl/IWFUcP
- * PARAMS:
- * pts: points from findContours
- * img: image to draw the results on
- * offset: amount to displace the center found
- * posCenter: stores the center of mass found
- */
+// Get orientation of the contour using PCA
+// Reference: https://goo.gl/IWFUcP
 double getOrientation(vector<Point> &pts,
                       Mat &img,
                       Point &posCenter,
                       const Point offset = Point(0,0));
 
-/**
- * @brief Detects the UAV based on contour conditions
- */
+//Detects the UAV based on contour conditions
 void detectUAV(InputArray _in,
                InputArray _inColor,
                vector<vector<Point>> &candidates,
@@ -69,27 +54,33 @@ bool opticalFlow(InputOutputArray &flowPrev,
                  vector<float> &err
                  );
 
+// Signals on screen that the plane has crossed the pole
 void drawCrossingSign(InputArray _in,
                       const Point &pt1,
                       const Point &pt2);
 
-/**
- * @brief
- * _in: grayscale frame
- * _out: segmented frame
- */
+// segments the image with UAV parameters
 void segmentUAV(InputArray _in, OutputArray _out);
 
-/**
- * @brief Detect the flag pole
- */
-void detectPole(InputArray _in,
-                vector< vector< Point > > &_candidates);
+// Detect the flag pole
+void detectPole(InputArray _in, vector< vector< Point > > &_candidates);
 
 void calcOFlowMagnitude(const vector<Point2f> &prevPts,
                         const vector<Point2f> &nextPts,
                         const vector<uchar> &status,
                         vector<double> &magnitude);
+
+// Jumps the # of frames provided
+void onSkipFrames(VideoCapture &cap, int numFrames);
+
+// Color conversion
+void convertToGrey(InputArray _in, OutputArray _out);
+
+// Pauses the video
+void pause(VideoCapture &cap);
+
+// Adds textual info to the provided image
+void display(Mat &img, Point pos, Scalar fontColor, const string &ss);
 
 
 #endif /* plane_hpp */

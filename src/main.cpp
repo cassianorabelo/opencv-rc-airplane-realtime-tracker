@@ -13,7 +13,6 @@
 #include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/video/tracking.hpp>
 #include <iostream>
-
 #include "plane.hpp"
 
 using namespace std;
@@ -266,8 +265,8 @@ int main(int argc, char *argv[]) {
             
             ostringstream text;
             text << "PLANE ON FRAME";
-            matPrint(frame, Point(S.width/2-50, 60), Scalar(0), text.str());
-            matPrint(frame, Point(S.width/2-50, 75), Scalar(0), movingTxt);
+            display(frame, Point(S.width/2-50, 60), Scalar(0), text.str());
+            display(frame, Point(S.width/2-50, 75), Scalar(0), movingTxt);
             drawContours(frame, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
             if (gDebug) {
                 drawContours(matOutput, planeContours, -1, Scalar(50, 60,240), 2, LINE_AA);
@@ -289,14 +288,14 @@ int main(int argc, char *argv[]) {
             resize(matFlow, matFlow, Size(), 0.25, 0.25);
             matFlow.copyTo(matOutput(Rect(10,10,matFlow.cols, matFlow.rows)));
             frame = matOutput;
-            matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn OFF debug mode");
+            display(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn OFF debug mode");
         }
         else
         {
-            matPrint(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn ON debug mode");
+            display(frame, Point(80, S.height-30), Scalar(0), "Press \"d\" to turn ON debug mode");
         }
         
-        imshow("DAI . Questao #2 . Cassiano Rabelo", frame);
+        imshow("DAI . Questao #3 . Cassiano Rabelo", frame);
         
         if (writeOutput)
             outputVideo.write(frame);
