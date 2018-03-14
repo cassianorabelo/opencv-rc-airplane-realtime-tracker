@@ -1,5 +1,5 @@
 
-# rc-plane-realtime-cv-tracker
+# opencv-rc-airplane-realtime-tracker
 
 ![Computer vision RC plane tracking](https://i.imgur.com/dg7vvtK.gif)
 
